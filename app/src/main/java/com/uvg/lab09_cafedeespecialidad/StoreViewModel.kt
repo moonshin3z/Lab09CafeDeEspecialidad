@@ -17,39 +17,42 @@ class StoreViewModel : ViewModel() {
                 Product(
                     id = "cafe-geisha",
                     name = "Geisha de Huehuetenango",
-                    description = "Café de aroma floral, acidez brillante y notas de jazmín y durazno.",
+                    description = "Taza floral y delicada, con notas a jazmín, bergamota y un dulzor tipo panela.",
                     price = 145.00,
-                    profileId = "finca-la-esperanza"
+                    profileId = "finca-la-esperanza",
+                    technicalSheet = "Altitud: 1,850 msnm · Variedad: Geisha · Proceso: Lavado · Secado: Patio y sombra, 12 días."
                 ),
                 Product(
                     id = "cafe-bourbon",
                     name = "Bourbon de Antigua",
-                    description = "Café balanceado con notas de chocolate, caramelo y frutos rojos.",
-                    price = 110.00,
-                    profileId = "finca-la-esperanza"
+                    description = "Cuerpo medio con acidez cítrica equilibrada, notas de chocolate y almendra tostada.",
+                    price = 98.00,
+                    profileId = "finca-la-esperanza",
+                    technicalSheet = "Altitud: 1,500 msnm · Variedad: Bourbon Rojo · Proceso: Honey · Secado: Camas africanas, 9 días."
                 ),
                 Product(
                     id = "cafe-caturra",
                     name = "Caturra de Cobán",
-                    description = "Café de cuerpo cremoso con notas de cacao, nuez y naranja.",
-                    price = 95.00,
-                    profileId = "cooperativa-chicoj"
+                    description = "Perfil suave y balanceado, con notas a caramelo, nuez y final limpio achocolatado.",
+                    price = 85.00,
+                    profileId = "cooperativa-chicoj",
+                    technicalSheet = "Altitud: 1,300 msnm · Variedad: Caturra · Proceso: Natural · Secado: Marquesina, 15 días."
                 )
             ),
             profiles = listOf(
                 Profile(
                     id = "finca-la-esperanza",
                     name = "Finca La Esperanza",
-                    role = "Productor de café de especialidad",
+                    role = "Finca productora",
                     location = "Huehuetenango, Guatemala",
-                    description = "Finca familiar dedicada al cultivo y procesamiento de café de altura."
+                    description = "Finca familiar de tercera generación dedicada al cultivo de variedades de altura bajo sombra."
                 ),
                 Profile(
                     id = "cooperativa-chicoj",
                     name = "Cooperativa Chicoj",
                     role = "Cooperativa de productores",
                     location = "Cobán, Alta Verapaz, Guatemala",
-                    description = "Cooperativa que reúne a pequeños productores y promueve prácticas sostenibles."
+                    description = "Agrupa a más de 40 familias caficultoras y comercializa bajo un modelo de comercio justo."
                 )
             )
         )
@@ -58,16 +61,13 @@ class StoreViewModel : ViewModel() {
     val uiState: StateFlow<StoreUiState> = _uiState.asStateFlow()
 
     fun toggleFavorite(productId: String) {
-        _uiState.update { currentState ->
-            val updatedFavoriteIds =
-                if (productId in currentState.favoriteIds) {
-                    currentState.favoriteIds - productId
+        _uiState.update { current ->
+            current.copy(
+                favoriteIds = if (productId in current.favoriteIds) {
+                    current.favoriteIds - productId
                 } else {
-                    currentState.favoriteIds + productId
+                    current.favoriteIds + productId
                 }
-
-            currentState.copy(
-                favoriteIds = updatedFavoriteIds
             )
         }
     }
