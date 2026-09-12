@@ -1,6 +1,5 @@
 package com.uvg.lab09_cafedeespecialidad.ui.components
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +12,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,20 +26,6 @@ fun ProductCard(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    DisposableEffect(product.id) {
-        Log.d(
-            "CatalogProbe",
-            "ENTER id=${product.id}"
-        )
-
-        onDispose {
-            Log.d(
-                "CatalogProbe",
-                "EXIT id=${product.id}"
-            )
-        }
-    }
-
     Card(
         modifier = modifier
             .height(250.dp)
