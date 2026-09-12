@@ -1,13 +1,14 @@
 package com.uvg.lab09_cafedeespecialidad
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,6 +25,7 @@ import com.uvg.lab09_cafedeespecialidad.ui.components.ProductCard
 fun CatalogScreen(
     products: List<Product>,
     favoriteIds: Set<String>,
+    gridState: LazyGridState,
     onProductClick: (String) -> Unit,
     onToggleFavorite: (String) -> Unit
 ) {
@@ -36,41 +38,48 @@ fun CatalogScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            state = gridState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(paddingValues),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 96.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "${products.size} de ${products.size} productos",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            products.chunked(2).forEach { rowProducts ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowProducts.forEach { product ->
-                        ProductCard(
-                            product = product,
-                            isFavorite = product.id in favoriteIds,
-                            onClick = {
-                                onProductClick(product.id)
-                            },
-                            onToggleFavorite = {
-                                onToggleFavorite(product.id)
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    if (rowProducts.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+            item(
+                span = {
+                    GridItemSpan(maxLineSpan)
                 }
+            ) {
+                Text(
+                    text = "${products.size} de ${products.size} productos",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            items(
+                items = products,
+                key = { product ->
+                    product.id
+                }
+            ) { product ->
+                ProductCard(
+                    product = product,
+                    isFavorite = product.id in favoriteIds,
+                    onClick = {
+                        onProductClick(product.id)
+                    },
+                    onToggleFavorite = {
+                        onToggleFavorite(product.id)
+                    }
+                )
             }
         }
     }
