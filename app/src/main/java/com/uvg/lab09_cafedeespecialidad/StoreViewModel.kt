@@ -11,60 +11,72 @@ import kotlinx.coroutines.flow.update
 
 class StoreViewModel : ViewModel() {
 
+    private val originalProducts = listOf(
+        Product(
+            id = "cafe-geisha",
+            name = "Geisha de Huehuetenango",
+            description = "Taza floral y delicada, con notas a jazmín, bergamota y un dulzor tipo panela.",
+            price = 145.00,
+            stock = 3,
+            imageUrl = "https://picsum.photos/seed/cafe-geisha/400/400",
+            profileId = "finca-la-esperanza",
+            technicalSheet = "Altitud: 1,850 msnm · Variedad: Geisha · Proceso: Lavado · Secado: Patio y sombra, 12 días."
+        ),
+        Product(
+            id = "cafe-bourbon",
+            name = "Bourbon de Antigua",
+            description = "Cuerpo medio con acidez cítrica equilibrada, notas de chocolate y almendra tostada.",
+            price = 98.00,
+            stock = 8,
+            imageUrl = "https://picsum.photos/seed/cafe-bourbon/400/400",
+            profileId = "finca-la-esperanza",
+            technicalSheet = "Altitud: 1,500 msnm · Variedad: Bourbon Rojo · Proceso: Honey · Secado: Camas africanas, 9 días."
+        ),
+        Product(
+            id = "cafe-caturra",
+            name = "Caturra de Cobán",
+            description = "Perfil suave y balanceado, con notas a caramelo, nuez y final limpio achocolatado.",
+            price = 85.00,
+            stock = 0,
+            imageUrl = "https://picsum.photos/seed/cafe-caturra/400/400",
+            profileId = "cooperativa-chicoj",
+            technicalSheet = "Altitud: 1,300 msnm · Variedad: Caturra · Proceso: Natural · Secado: Marquesina, 15 días."
+        )
+    )
+
+    private val originalProfiles = listOf(
+        Profile(
+            id = "finca-la-esperanza",
+            name = "Finca La Esperanza",
+            role = "Finca productora",
+            location = "Huehuetenango, Guatemala",
+            description = "Finca familiar de tercera generación dedicada al cultivo de variedades de altura bajo sombra."
+        ),
+        Profile(
+            id = "cooperativa-chicoj",
+            name = "Cooperativa Chicoj",
+            role = "Cooperativa de productores",
+            location = "Cobán, Alta Verapaz, Guatemala",
+            description = "Agrupa a más de 40 familias caficultoras y comercializa bajo un modelo de comercio justo."
+        )
+    )
+
     private val _uiState = MutableStateFlow(
         StoreUiState(
-            products = listOf(
-                Product(
-                    id = "cafe-geisha",
-                    name = "Geisha de Huehuetenango",
-                    description = "Taza floral y delicada, con notas a jazmín, bergamota y un dulzor tipo panela.",
-                    price = 145.00,
-                    stock = 3,
-                    imageUrl = "https://picsum.photos/seed/cafe-geisha/400/400",
-                    profileId = "finca-la-esperanza",
-                    technicalSheet = "Altitud: 1,850 msnm · Variedad: Geisha · Proceso: Lavado · Secado: Patio y sombra, 12 días."
-                ),
-                Product(
-                    id = "cafe-bourbon",
-                    name = "Bourbon de Antigua",
-                    description = "Cuerpo medio con acidez cítrica equilibrada, notas de chocolate y almendra tostada.",
-                    price = 98.00,
-                    stock = 8,
-                    imageUrl = "https://picsum.photos/seed/cafe-bourbon/400/400",
-                    profileId = "finca-la-esperanza",
-                    technicalSheet = "Altitud: 1,500 msnm · Variedad: Bourbon Rojo · Proceso: Honey · Secado: Camas africanas, 9 días."
-                ),
-                Product(
-                    id = "cafe-caturra",
-                    name = "Caturra de Cobán",
-                    description = "Perfil suave y balanceado, con notas a caramelo, nuez y final limpio achocolatado.",
-                    price = 85.00,
-                    stock = 0,
-                    imageUrl = "https://picsum.photos/seed/cafe-caturra/400/400",
-                    profileId = "cooperativa-chicoj",
-                    technicalSheet = "Altitud: 1,300 msnm · Variedad: Caturra · Proceso: Natural · Secado: Marquesina, 15 días."
-                )
+            products = generateCatalog(
+                originals = originalProducts,
+                seed = CATALOG_SEED
             ),
-            profiles = listOf(
-                Profile(
-                    id = "finca-la-esperanza",
-                    name = "Finca La Esperanza",
-                    role = "Finca productora",
-                    location = "Huehuetenango, Guatemala",
-                    description = "Finca familiar de tercera generación dedicada al cultivo de variedades de altura bajo sombra."
-                ),
-                Profile(
-                    id = "cooperativa-chicoj",
-                    name = "Cooperativa Chicoj",
-                    role = "Cooperativa de productores",
-                    location = "Cobán, Alta Verapaz, Guatemala",
-                    description = "Agrupa a más de 40 familias caficultoras y comercializa bajo un modelo de comercio justo."
-                )
-            )
+            profiles = originalProfiles
         )
     )
 
     val uiState: StateFlow<StoreUiState> = _uiState.asStateFlow()
+
+    init {
+        check(_uiState.value.products.size == 500)
+        check(_uiState.value.products.map { product -> product.id }.distinct().size == 500)
+    }
 
     fun toggleFavorite(productId: String) {
         _uiState.update { current ->
@@ -85,20 +97,24 @@ class StoreViewModel : ViewModel() {
     }
 
     fun addToOrder(productId: String) {
-
+        // Se implementará posteriormente mediante las reglas puras del pedido.
     }
 
     fun decreaseOrderItem(productId: String) {
-
+        // Se implementará posteriormente mediante las reglas puras del pedido.
     }
 
     fun removeOrderItem(productId: String) {
-
+        // Se implementará posteriormente mediante las reglas puras del pedido.
     }
 
     fun clearOrderMessage() {
         _uiState.update { current ->
             current.copy(orderMessage = null)
         }
+    }
+
+    private companion object {
+        const val CATALOG_SEED = 2026
     }
 }
