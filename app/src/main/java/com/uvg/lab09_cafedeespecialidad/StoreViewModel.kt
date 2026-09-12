@@ -19,6 +19,8 @@ class StoreViewModel : ViewModel() {
                     name = "Geisha de Huehuetenango",
                     description = "Taza floral y delicada, con notas a jazmín, bergamota y un dulzor tipo panela.",
                     price = 145.00,
+                    stock = 3,
+                    imageUrl = "https://picsum.photos/seed/cafe-geisha/400/400",
                     profileId = "finca-la-esperanza",
                     technicalSheet = "Altitud: 1,850 msnm · Variedad: Geisha · Proceso: Lavado · Secado: Patio y sombra, 12 días."
                 ),
@@ -27,6 +29,8 @@ class StoreViewModel : ViewModel() {
                     name = "Bourbon de Antigua",
                     description = "Cuerpo medio con acidez cítrica equilibrada, notas de chocolate y almendra tostada.",
                     price = 98.00,
+                    stock = 8,
+                    imageUrl = "https://picsum.photos/seed/cafe-bourbon/400/400",
                     profileId = "finca-la-esperanza",
                     technicalSheet = "Altitud: 1,500 msnm · Variedad: Bourbon Rojo · Proceso: Honey · Secado: Camas africanas, 9 días."
                 ),
@@ -35,6 +39,8 @@ class StoreViewModel : ViewModel() {
                     name = "Caturra de Cobán",
                     description = "Perfil suave y balanceado, con notas a caramelo, nuez y final limpio achocolatado.",
                     price = 85.00,
+                    stock = 0,
+                    imageUrl = "https://picsum.photos/seed/cafe-caturra/400/400",
                     profileId = "cooperativa-chicoj",
                     technicalSheet = "Altitud: 1,300 msnm · Variedad: Caturra · Proceso: Natural · Secado: Marquesina, 15 días."
                 )
@@ -69,6 +75,30 @@ class StoreViewModel : ViewModel() {
                     current.favoriteIds + productId
                 }
             )
+        }
+    }
+
+    fun onQueryChange(query: String) {
+        _uiState.update { current ->
+            current.copy(query = query)
+        }
+    }
+
+    fun addToOrder(productId: String) {
+
+    }
+
+    fun decreaseOrderItem(productId: String) {
+
+    }
+
+    fun removeOrderItem(productId: String) {
+
+    }
+
+    fun clearOrderMessage() {
+        _uiState.update { current ->
+            current.copy(orderMessage = null)
         }
     }
 }
