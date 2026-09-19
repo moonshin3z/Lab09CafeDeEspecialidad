@@ -32,7 +32,9 @@ fun ProductCard(
             .clickable(onClick = onClick)
     ) {
         Column {
-            ProductImagePlaceholder()
+           ProductImage(
+                imageUrl = product.imageUrl
+           )
 
             Column(
                 modifier = Modifier.padding(12.dp),

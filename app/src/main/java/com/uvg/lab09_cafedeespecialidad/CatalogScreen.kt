@@ -1,6 +1,7 @@
 package com.uvg.lab09_cafedeespecialidad
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,26 +16,56 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.uvg.lab09_cafedeespecialidad.model.Product
 import com.uvg.lab09_cafedeespecialidad.ui.components.ProductCard
+import com.uvg.lab09_cafedeespecialidad.ui.components.ScrollToTopButton
+import com.uvg.lab09_cafedeespecialidad.ui.components.SearchBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogScreen(
     products: List<Product>,
     favoriteIds: Set<String>,
+    query: String,
     gridState: LazyGridState,
+    onQueryChange: (String) -> Unit,
     onProductClick: (String) -> Unit,
     onToggleFavorite: (String) -> Unit
 ) {
+    val normalizedQuery = query.trim()
+
+    val filteredProducts = remember(products, normalizedQuery) {
+        if (normalizedQuery.isEmpty()) {
+            products
+        } else {
+            products.filter { product ->
+                product.name.contains(
+                    other = normalizedQuery,
+                    ignoreCase = true
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(query) {
+        gridState.scrollToItem(0)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text("Café de Especialidad")
                 }
+            )
+        },
+        floatingActionButton = {
+            ScrollToTopButton(
+                gridState = gridState
             )
         }
     ) { paddingValues ->
@@ -58,28 +89,50 @@ fun CatalogScreen(
                     GridItemSpan(maxLineSpan)
                 }
             ) {
-                Text(
-                    text = "${products.size} de ${products.size} productos",
-                    style = MaterialTheme.typography.bodyMedium
+                SearchBar(
+                    query = query,
+                    resultCount = filteredProducts.size,
+                    onQueryChange = onQueryChange
                 )
             }
 
-            items(
-                items = products,
-                key = { product ->
-                    product.id
-                }
-            ) { product ->
-                ProductCard(
-                    product = product,
-                    isFavorite = product.id in favoriteIds,
-                    onClick = {
-                        onProductClick(product.id)
-                    },
-                    onToggleFavorite = {
-                        onToggleFavorite(product.id)
+            if (filteredProducts.isEmpty()) {
+                item(
+                    span = {
+                        GridItemSpan(maxLineSpan)
                     }
-                )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 24.dp)
+                    ) {
+                        Text(
+                            text = "No encontramos productos.",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "Prueba con otra búsqueda o usa Limpiar.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            } else {
+                items(
+                    items = filteredProducts,
+                    key = { product ->
+                        product.id
+                    }
+                ) { product ->
+                    ProductCard(
+                        product = product,
+                        isFavorite = product.id in favoriteIds,
+                        onClick = {
+                            onProductClick(product.id)
+                        },
+                        onToggleFavorite = {
+                            onToggleFavorite(product.id)
+                        }
+                    )
+                }
             }
         }
     }

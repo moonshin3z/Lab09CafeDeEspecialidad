@@ -11,6 +11,10 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.uvg.lab09_cafedeespecialidad.navigation.StoreNavKey
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 
 @Composable
 fun StoreApp(
@@ -37,11 +41,40 @@ fun StoreApp(
                 backStack.removeLastOrNull()
             }
         },
+        transitionSpec = {
+        slideInHorizontally(
+        initialOffsetX = { width -> width },
+        animationSpec = tween(300)
+        ) togetherWith slideOutHorizontally(
+        targetOffsetX = { width -> -width },
+        animationSpec = tween(300)
+        )
+    },
+        popTransitionSpec = {
+        slideInHorizontally(
+        initialOffsetX = { width -> -width },
+        animationSpec = tween(300)
+        ) togetherWith slideOutHorizontally(
+        targetOffsetX = { width -> width },
+        animationSpec = tween(300)
+    )
+    },
+        predictivePopTransitionSpec = {
+        slideInHorizontally(
+        initialOffsetX = { width -> -width },
+        animationSpec = tween(300)
+    )   togetherWith slideOutHorizontally(
+        targetOffsetX = { width -> width },
+        animationSpec = tween(300)
+    )
+},
         entryProvider = entryProvider {
             entry<StoreNavKey.Catalog> {
                 CatalogScreen(
                     products = uiState.products,
                     favoriteIds = uiState.favoriteIds,
+                    query = uiState.query,
+                    onQueryChange = viewModel::onQueryChange,
                     gridState = catalogGridState,
                     onProductClick = { productId ->
                         backStack.add(
