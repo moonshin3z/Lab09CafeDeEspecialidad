@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -29,20 +30,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.uvg.lab09_cafedeespecialidad.ui.components.FavoriteIconButton
 import com.uvg.lab09_cafedeespecialidad.model.Product
+import com.uvg.lab09_cafedeespecialidad.ui.components.FavoriteIconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     product: Product,
     isFavorite: Boolean,
+    orderQuantity: Int,
+    orderMessage: String?,
     onToggleFavorite: () -> Unit,
+    onAddToOrder: () -> Unit,
     onProfileClick: () -> Unit,
     onBack: () -> Unit
 ) {
-    // Estado efímero de UI: pertenece únicamente a esta pantalla y se
-    // reinicia si la pantalla se recrea sin haber sido preservada en el back stack.
     var isTechnicalSheetExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -82,7 +84,30 @@ fun DetailScreen(
                 )
             }
 
-            Text(text = product.description, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = product.description,
+                style = MaterialTheme.typography.bodyLarge
+            )
+
+            Text(
+                text = "${product.stock} disponibles · $orderQuantity en el pedido",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Button(
+                onClick = onAddToOrder,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = product.stock > 0 && orderQuantity < product.stock
+            ) {
+                Text("Agregar al pedido")
+            }
+
+            if (orderMessage != null) {
+                Text(
+                    text = orderMessage,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             HorizontalDivider()
 
@@ -104,7 +129,10 @@ fun DetailScreen(
                 }
             }
 
-            OutlinedButton(onClick = onProfileClick, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = onProfileClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Ver productor")
             }
         }
