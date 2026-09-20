@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
@@ -27,6 +30,17 @@ fun StoreApp(
     )
 
     val catalogGridState = rememberLazyGridState()
+    var previousQuery by rememberSaveable {
+        mutableStateOf(uiState.query)
+    }
+
+    LaunchedEffect(uiState.query) {
+        if (uiState.query != previousQuery) {
+            catalogGridState.scrollToItem(0)
+            previousQuery = uiState.query
+        }
+    }
+
     val orderUnitCount = uiState.orderItems.sumOf { item ->
         item.quantity
     }
@@ -84,6 +98,7 @@ fun StoreApp(
                     },
                     gridState = catalogGridState,
                     onProductClick = { productId ->
+                        viewModel.clearOrderMessage()
                         backStack.add(
                             StoreNavKey.Detail(productId)
                         )
