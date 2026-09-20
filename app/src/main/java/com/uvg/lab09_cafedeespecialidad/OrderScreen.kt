@@ -82,6 +82,11 @@ fun OrderScreen(
                     text = "Agrega productos desde su detalle.",
                     style = MaterialTheme.typography.bodyMedium
                 )
+                Text(
+                    text = "Total Q ${"%.2f".format(orderTotal)}",
+                    modifier = Modifier.padding(top = 12.dp),
+                    style = MaterialTheme.typography.titleMedium
+                )
             }
         } else {
             LazyColumn(
