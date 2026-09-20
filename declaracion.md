@@ -1,14 +1,19 @@
 # Declaración de herramientas y recursos externos
 
-Laboratorio 09: Tienda temática (café de especialidad)
+Laboratorio 10: Un catálogo eficiente para preparar pedidos
 
 ## Inteligencia artificial
 
-Se utilizó Claude (Anthropic) para la configuración de Gradle y las dependencias de Navigation 3, la estructura de la capa de navegación (claves selladas, back stack y NavDisplay), y la resolución de errores de compilación e integración de ramas.
+Se utilizó Claude (Anthropic) en trabajo previo del laboratorio 09 para apoyar la configuración inicial de Gradle, Navigation 3 y la integración de ramas.
 
-Todo el código generado con asistencia fue revisado, adaptado y probado por los integrantes. La temática, los datos de productos y productores y el diseño de las pantallas son propios.
+Para el laboratorio 10 se utilizó ChatGPT (OpenAI) como apoyo para revisar los requisitos de la hoja, detectar inconsistencias de integración, implementar y revisar las reglas puras del pedido, conectar el ViewModel con la UI, corregir la conservación de la posición del catálogo y preparar el plan de evidencias y la descripción del PR.
 
+Las decisiones finales del proyecto, la ejecución de la aplicación y la comprobación manual de los resultados corresponden al equipo.
 
 ## Otros recursos
 
-Documentación oficial de Android sobre Navigation 3, Jetpack Compose y Material 3. No se copió código de repositorios de terceros ni de tutoriales.
+Se consultó documentación oficial de Android Developers sobre Navigation 3, conservación de estado, efectos de Compose, accesibilidad y Network Inspector.
+
+También se consultó la documentación oficial de Coil 3 para AsyncImage, crossfade y carga de imágenes por red con OkHttp.
+
+No se copió código de repositorios de terceros ni de tutoriales.
