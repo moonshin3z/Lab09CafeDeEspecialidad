@@ -5,6 +5,11 @@ import kotlin.random.Random
 
 private const val CATALOG_SIZE = 500
 
+private data class OriginProfile(
+    val origin: String,
+    val profileId: String
+)
+
 fun generateCatalog(
     originals: List<Product>,
     seed: Int
@@ -20,13 +25,24 @@ fun generateCatalog(
     }
 
     val random = Random(seed)
-    val origins = listOf(
-        "Huehuetenango",
-        "Antigua",
-        "Cobán",
-        "Atitlán",
-        "Fraijanes"
-    )
+    val originalProfileIds = originals.map(Product::profileId).toSet()
+    val originProfiles = listOf(
+        OriginProfile(
+            origin = "Huehuetenango",
+            profileId = "finca-la-esperanza"
+        ),
+        OriginProfile(
+            origin = "Cobán",
+            profileId = "cooperativa-chicoj"
+        )
+    ).filter { option ->
+        option.profileId in originalProfileIds
+    }
+
+    require(originProfiles.isNotEmpty()) {
+        "Se necesita al menos un perfil asociado a un origen del catálogo."
+    }
+
     val varieties = listOf(
         "Bourbon",
         "Caturra",
@@ -44,12 +60,11 @@ fun generateCatalog(
         "medio",
         "oscuro"
     )
-    val profileIds = originals.map(Product::profileId).distinct()
 
     val generatedProducts = (originals.size until CATALOG_SIZE).map { index ->
         val generatedNumber = index - originals.size + 1
         val id = "generated-coffee-$generatedNumber"
-        val origin = origins.random(random)
+        val originProfile = originProfiles.random(random)
         val variety = varieties.random(random)
         val process = processes.random(random)
         val roast = roasts.random(random)
@@ -61,9 +76,9 @@ fun generateCatalog(
 
         Product(
             id = id,
-            name = "$variety de $origin $generatedNumber",
+            name = "$variety de ${originProfile.origin} $generatedNumber",
             description = buildString {
-                append("Café de $origin con tueste $roast y proceso ")
+                append("Café de ${originProfile.origin} con tueste $roast y proceso ")
                 append(process.lowercase())
                 append(".")
             },
@@ -73,9 +88,9 @@ fun generateCatalog(
             ) / 100.0,
             stock = stock,
             imageUrl = "https://picsum.photos/seed/$id/400/400",
-            profileId = profileIds.random(random),
+            profileId = originProfile.profileId,
             technicalSheet = buildString {
-                append("Origen: $origin · ")
+                append("Origen: ${originProfile.origin} · ")
                 append("Variedad: $variety · ")
                 append("Proceso: $process · ")
                 append("Tueste: ${roast.replaceFirstChar(Char::uppercase)}.")
