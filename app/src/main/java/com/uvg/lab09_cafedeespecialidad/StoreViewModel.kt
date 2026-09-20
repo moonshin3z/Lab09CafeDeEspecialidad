@@ -4,6 +4,12 @@ import androidx.lifecycle.ViewModel
 import com.uvg.lab09_cafedeespecialidad.model.Product
 import com.uvg.lab09_cafedeespecialidad.model.Profile
 import com.uvg.lab09_cafedeespecialidad.model.StoreUiState
+import com.uvg.lab09_cafedeespecialidad.order.OrderUpdateResult
+import com.uvg.lab09_cafedeespecialidad.order.addToOrder as addToOrderRule
+import com.uvg.lab09_cafedeespecialidad.order.calculateLineSubtotal
+import com.uvg.lab09_cafedeespecialidad.order.calculateOrderTotal
+import com.uvg.lab09_cafedeespecialidad.order.decreaseOrderItem as decreaseOrderItemRule
+import com.uvg.lab09_cafedeespecialidad.order.removeOrderItem as removeOrderItemRule
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -96,16 +102,86 @@ class StoreViewModel : ViewModel() {
         }
     }
 
-    fun addToOrder(productId: String) {
-        // Se implementará posteriormente mediante las reglas puras del pedido.
+    fun addToOrder(
+        productId: String,
+        increment: Int = 1
+    ) {
+        _uiState.update { current ->
+            when (
+                val result = addToOrderRule(
+                    products = current.products,
+                    orderItems = current.orderItems,
+                    productId = productId,
+                    increment = increment
+                )
+            ) {
+                is OrderUpdateResult.Success -> {
+                    val unitLabel = if (increment == 1) {
+                        "unidad"
+                    } else {
+                        "unidades"
+                    }
+
+                    current.copy(
+                        orderItems = result.orderItems,
+                        orderMessage = "Se agregó $increment $unitLabel al pedido."
+                    )
+                }
+
+                is OrderUpdateResult.Rejected -> {
+                    current.copy(
+                        orderMessage = result.reason
+                    )
+                }
+            }
+        }
     }
 
     fun decreaseOrderItem(productId: String) {
-        // Se implementará posteriormente mediante las reglas puras del pedido.
+        _uiState.update { current ->
+            current.copy(
+                orderItems = decreaseOrderItemRule(
+                    orderItems = current.orderItems,
+                    productId = productId
+                ),
+                orderMessage = null
+            )
+        }
     }
 
     fun removeOrderItem(productId: String) {
-        // Se implementará posteriormente mediante las reglas puras del pedido.
+        _uiState.update { current ->
+            current.copy(
+                orderItems = removeOrderItemRule(
+                    orderItems = current.orderItems,
+                    productId = productId
+                ),
+                orderMessage = null
+            )
+        }
+    }
+
+    fun orderSubtotal(productId: String): Double {
+        val current = _uiState.value
+        val product = current.products.firstOrNull { item ->
+            item.id == productId
+        } ?: return 0.0
+        val orderItem = current.orderItems.firstOrNull { item ->
+            item.productId == productId
+        } ?: return 0.0
+
+        return calculateLineSubtotal(
+            product = product,
+            orderItem = orderItem
+        )
+    }
+
+    fun orderTotal(): Double {
+        val current = _uiState.value
+        return calculateOrderTotal(
+            products = current.products,
+            orderItems = current.orderItems
+        )
     }
 
     fun clearOrderMessage() {
