@@ -14,13 +14,13 @@ fun generateCatalog(
     originals: List<Product>,
     seed: Int
 ): List<Product> {
-    require(originals.isNotEmpty()) {
+    kotlin.require(originals.isNotEmpty()) {
         "Se necesita al menos un producto original."
     }
-    require(originals.size <= CATALOG_SIZE) {
+    kotlin.require(originals.size <= CATALOG_SIZE) {
         "El catálogo original no puede superar los $CATALOG_SIZE productos."
     }
-    require(originals.map(Product::id).distinct().size == originals.size) {
+    kotlin.require(originals.map(Product::id).distinct().size == originals.size) {
         "Los productos originales deben tener IDs únicos."
     }
 
@@ -39,7 +39,7 @@ fun generateCatalog(
         option.profileId in originalProfileIds
     }
 
-    require(originProfiles.isNotEmpty()) {
+    kotlin.require(originProfiles.isNotEmpty()) {
         "Se necesita al menos un perfil asociado a un origen del catálogo."
     }
 
