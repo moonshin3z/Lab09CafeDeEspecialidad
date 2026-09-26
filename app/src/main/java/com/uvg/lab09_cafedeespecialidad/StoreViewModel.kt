@@ -1,6 +1,9 @@
 package com.uvg.lab09_cafedeespecialidad
 
 import androidx.lifecycle.ViewModel
+import com.uvg.lab09_cafedeespecialidad.model.BillingType
+import com.uvg.lab09_cafedeespecialidad.model.CheckoutUiState
+import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
 import com.uvg.lab09_cafedeespecialidad.model.Product
 import com.uvg.lab09_cafedeespecialidad.model.Profile
 import com.uvg.lab09_cafedeespecialidad.model.StoreUiState
@@ -10,6 +13,10 @@ import com.uvg.lab09_cafedeespecialidad.order.calculateLineSubtotal
 import com.uvg.lab09_cafedeespecialidad.order.calculateOrderTotal
 import com.uvg.lab09_cafedeespecialidad.order.decreaseOrderItem as decreaseOrderItemRule
 import com.uvg.lab09_cafedeespecialidad.order.removeOrderItem as removeOrderItemRule
+import com.uvg.lab09_cafedeespecialidad.validation.validateBusinessName
+import com.uvg.lab09_cafedeespecialidad.validation.validateFullName
+import com.uvg.lab09_cafedeespecialidad.validation.validateNit
+import com.uvg.lab09_cafedeespecialidad.validation.validatePhone
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -79,9 +86,21 @@ class StoreViewModel : ViewModel() {
 
     val uiState: StateFlow<StoreUiState> = _uiState.asStateFlow()
 
+    private val _checkoutUiState = MutableStateFlow(
+        CheckoutUiState()
+    )
+
+    val checkoutUiState: StateFlow<CheckoutUiState> =
+        _checkoutUiState.asStateFlow()
+
     init {
         check(_uiState.value.products.size == 500)
-        check(_uiState.value.products.map { product -> product.id }.distinct().size == 500)
+        check(
+            _uiState.value.products
+                .map { product -> product.id }
+                .distinct()
+                .size == 500
+        )
     }
 
     fun toggleFavorite(productId: String) {
@@ -163,9 +182,11 @@ class StoreViewModel : ViewModel() {
 
     fun orderSubtotal(productId: String): Double {
         val current = _uiState.value
+
         val product = current.products.firstOrNull { item ->
             item.id == productId
         } ?: return 0.0
+
         val orderItem = current.orderItems.firstOrNull { item ->
             item.productId == productId
         } ?: return 0.0
@@ -178,6 +199,7 @@ class StoreViewModel : ViewModel() {
 
     fun orderTotal(): Double {
         val current = _uiState.value
+
         return calculateOrderTotal(
             products = current.products,
             orderItems = current.orderItems
@@ -188,6 +210,112 @@ class StoreViewModel : ViewModel() {
         _uiState.update { current ->
             current.copy(orderMessage = null)
         }
+    }
+
+    fun onFullNameChange(value: String) {
+        _checkoutUiState.update { current ->
+            current.copy(
+                fullName = value,
+                isFullNameTouched = true
+            ).withRecalculatedValidation()
+        }
+    }
+
+    fun onPhoneChange(value: String) {
+        _checkoutUiState.update { current ->
+            current.copy(
+                phone = value,
+                isPhoneTouched = true
+            ).withRecalculatedValidation()
+        }
+    }
+
+    fun onNitChange(value: String) {
+        _checkoutUiState.update { current ->
+            current.copy(
+                nit = value,
+                isNitTouched = current.billingType == BillingType.NIT
+            ).withRecalculatedValidation()
+        }
+    }
+
+    fun onBusinessNameChange(value: String) {
+        _checkoutUiState.update { current ->
+            current.copy(
+                businessName = value,
+                isBusinessNameTouched =
+                    current.billingType == BillingType.NIT
+            ).withRecalculatedValidation()
+        }
+    }
+
+    fun onBillingTypeChange(billingType: BillingType) {
+        _checkoutUiState.update { current ->
+            if (billingType == current.billingType) {
+                current.withRecalculatedValidation()
+            } else {
+                when (billingType) {
+                    BillingType.CF -> {
+                        current.copy(
+                            billingType = BillingType.CF,
+                            nitError = null,
+                            businessNameError = null,
+                            isNitTouched = false,
+                            isBusinessNameTouched = false
+                        ).withRecalculatedValidation()
+                    }
+
+                    BillingType.NIT -> {
+                        current.copy(
+                            billingType = BillingType.NIT,
+                            isNitTouched = false,
+                            isBusinessNameTouched = false
+                        ).withRecalculatedValidation()
+                    }
+                }
+            }
+        }
+    }
+
+    fun onPaymentMethodChange(paymentMethod: PaymentMethod) {
+        _checkoutUiState.update { current ->
+            current.copy(
+                paymentMethod = paymentMethod
+            ).withRecalculatedValidation()
+        }
+    }
+
+    private fun CheckoutUiState.withRecalculatedValidation():
+            CheckoutUiState {
+        val updatedFullNameError = validateFullName(fullName)
+        val updatedPhoneError = validatePhone(phone)
+
+        val updatedNitError = if (billingType == BillingType.NIT) {
+            validateNit(nit)
+        } else {
+            null
+        }
+
+        val updatedBusinessNameError =
+            if (billingType == BillingType.NIT) {
+                validateBusinessName(businessName)
+            } else {
+                null
+            }
+
+        val updatedIsFormValid =
+            updatedFullNameError == null &&
+                    updatedPhoneError == null &&
+                    updatedNitError == null &&
+                    updatedBusinessNameError == null
+
+        return copy(
+            fullNameError = updatedFullNameError,
+            phoneError = updatedPhoneError,
+            nitError = updatedNitError,
+            businessNameError = updatedBusinessNameError,
+            isFormValid = updatedIsFormValid
+        )
     }
 
     private companion object {

@@ -1,4 +1,9 @@
 package com.uvg.lab09_cafedeespecialidad
+
+import com.uvg.lab09_cafedeespecialidad.validation.validateBusinessName
+import com.uvg.lab09_cafedeespecialidad.validation.validateFullName
+import com.uvg.lab09_cafedeespecialidad.validation.validateNit
+import com.uvg.lab09_cafedeespecialidad.validation.validatePhone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -6,28 +11,28 @@ import org.junit.Test
 class CheckoutValidatorsTest {
 
     @Test
-    fun `full name with at least three letters is valid`() {
+    fun fullNameWithAtLeastThreeLettersIsValid() {
         val result = validateFullName("Ana")
 
         assertNull(result)
     }
 
     @Test
-    fun `full name accepts accents and letter enye`() {
+    fun fullNameAcceptsAccentsAndLetterEnye() {
         val result = validateFullName("Íñigo Núñez")
 
         assertNull(result)
     }
 
     @Test
-    fun `full name ignores spaces and signs when counting letters`() {
+    fun fullNameIgnoresSpacesAndSignsWhenCountingLetters() {
         val result = validateFullName("  A-B C  ")
 
         assertNull(result)
     }
 
     @Test
-    fun `full name with fewer than three letters is invalid`() {
+    fun fullNameWithFewerThanThreeLettersIsInvalid() {
         val result = validateFullName("A B")
 
         assertEquals(
@@ -37,7 +42,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `full name containing digits is invalid`() {
+    fun fullNameContainingDigitsIsInvalid() {
         val result = validateFullName("Ana 2")
 
         assertEquals(
@@ -47,7 +52,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `empty full name is invalid`() {
+    fun emptyFullNameIsInvalid() {
         val result = validateFullName("   ")
 
         assertEquals(
@@ -57,21 +62,21 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `phone with exactly eight digits is valid`() {
+    fun phoneWithExactlyEightDigitsIsValid() {
         val result = validatePhone("55123456")
 
         assertNull(result)
     }
 
     @Test
-    fun `phone applies trim before validation`() {
+    fun phoneAppliesTrimBeforeValidation() {
         val result = validatePhone("  55123456  ")
 
         assertNull(result)
     }
 
     @Test
-    fun `phone with fewer than eight digits is invalid`() {
+    fun phoneWithFewerThanEightDigitsIsInvalid() {
         val result = validatePhone("5512345")
 
         assertEquals(
@@ -81,7 +86,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `phone with more than eight digits is invalid`() {
+    fun phoneWithMoreThanEightDigitsIsInvalid() {
         val result = validatePhone("551234567")
 
         assertEquals(
@@ -91,7 +96,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `phone with internal spaces is invalid`() {
+    fun phoneWithInternalSpacesIsInvalid() {
         val result = validatePhone("5512 3456")
 
         assertEquals(
@@ -101,7 +106,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `phone with hyphen is invalid`() {
+    fun phoneWithHyphenIsInvalid() {
         val result = validatePhone("5512-3456")
 
         assertEquals(
@@ -111,7 +116,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `phone with country prefix is invalid`() {
+    fun phoneWithCountryPrefixIsInvalid() {
         val result = validatePhone("+50255123456")
 
         assertEquals(
@@ -121,28 +126,28 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `nit with exactly five digits is valid`() {
+    fun nitWithExactlyFiveDigitsIsValid() {
         val result = validateNit("12345")
 
         assertNull(result)
     }
 
     @Test
-    fun `nit with more than five digits is valid`() {
+    fun nitWithMoreThanFiveDigitsIsValid() {
         val result = validateNit("123456789")
 
         assertNull(result)
     }
 
     @Test
-    fun `nit applies trim before validation`() {
+    fun nitAppliesTrimBeforeValidation() {
         val result = validateNit("  12345  ")
 
         assertNull(result)
     }
 
     @Test
-    fun `nit with fewer than five digits is invalid`() {
+    fun nitWithFewerThanFiveDigitsIsInvalid() {
         val result = validateNit("1234")
 
         assertEquals(
@@ -152,7 +157,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `nit containing letters is invalid`() {
+    fun nitContainingLettersIsInvalid() {
         val result = validateNit("1234A")
 
         assertEquals(
@@ -162,7 +167,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `nit containing hyphen is invalid`() {
+    fun nitContainingHyphenIsInvalid() {
         val result = validateNit("1234-5")
 
         assertEquals(
@@ -172,28 +177,28 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `business name with three characters is valid`() {
+    fun businessNameWithThreeCharactersIsValid() {
         val result = validateBusinessName("ABC")
 
         assertNull(result)
     }
 
     @Test
-    fun `business name with normal company name is valid`() {
+    fun businessNameWithNormalCompanyNameIsValid() {
         val result = validateBusinessName("Guzmán Inversiones S.A.")
 
         assertNull(result)
     }
 
     @Test
-    fun `business name applies trim before counting characters`() {
+    fun businessNameAppliesTrimBeforeCountingCharacters() {
         val result = validateBusinessName("  ABC  ")
 
         assertNull(result)
     }
 
     @Test
-    fun `business name with fewer than three trimmed characters is invalid`() {
+    fun businessNameWithFewerThanThreeTrimmedCharactersIsInvalid() {
         val result = validateBusinessName("  AB  ")
 
         assertEquals(
@@ -203,7 +208,7 @@ class CheckoutValidatorsTest {
     }
 
     @Test
-    fun `empty business name is invalid`() {
+    fun emptyBusinessNameIsInvalid() {
         val result = validateBusinessName("   ")
 
         assertEquals(
