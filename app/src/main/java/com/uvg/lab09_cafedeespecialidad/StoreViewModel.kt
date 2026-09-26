@@ -3,6 +3,7 @@ package com.uvg.lab09_cafedeespecialidad
 import androidx.lifecycle.ViewModel
 import com.uvg.lab09_cafedeespecialidad.model.BillingType
 import com.uvg.lab09_cafedeespecialidad.model.CheckoutUiState
+import com.uvg.lab09_cafedeespecialidad.model.OrderReceipt
 import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
 import com.uvg.lab09_cafedeespecialidad.model.Product
 import com.uvg.lab09_cafedeespecialidad.model.Profile
@@ -17,6 +18,7 @@ import com.uvg.lab09_cafedeespecialidad.validation.validateBusinessName
 import com.uvg.lab09_cafedeespecialidad.validation.validateFullName
 import com.uvg.lab09_cafedeespecialidad.validation.validateNit
 import com.uvg.lab09_cafedeespecialidad.validation.validatePhone
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,6 +94,14 @@ class StoreViewModel : ViewModel() {
 
     val checkoutUiState: StateFlow<CheckoutUiState> =
         _checkoutUiState.asStateFlow()
+
+    private val _orderReceipt =
+        MutableStateFlow<OrderReceipt?>(null)
+
+    val orderReceipt: StateFlow<OrderReceipt?> =
+        _orderReceipt.asStateFlow()
+
+    private var nextOrderNumber = INITIAL_ORDER_NUMBER
 
     init {
         check(_uiState.value.products.size == 500)
@@ -206,6 +216,12 @@ class StoreViewModel : ViewModel() {
         )
     }
 
+    fun orderUnits(): Int {
+        return _uiState.value.orderItems.sumOf { orderItem ->
+            orderItem.quantity
+        }
+    }
+
     fun clearOrderMessage() {
         _uiState.update { current ->
             current.copy(orderMessage = null)
@@ -285,6 +301,64 @@ class StoreViewModel : ViewModel() {
         }
     }
 
+    fun confirmOrder(): Boolean {
+        val validatedCheckout =
+            _checkoutUiState.value.withRecalculatedValidation()
+
+        _checkoutUiState.value = validatedCheckout
+
+        val currentStore = _uiState.value
+        val units = currentStore.orderItems.sumOf { orderItem ->
+            orderItem.quantity
+        }
+
+        if (!validatedCheckout.isFormValid || units <= 0) {
+            return false
+        }
+
+        val total = calculateOrderTotal(
+            products = currentStore.products,
+            orderItems = currentStore.orderItems
+        )
+
+        val receipt = OrderReceipt(
+            folio = formatFolio(nextOrderNumber),
+            customerName = validatedCheckout.fullName.trim(),
+            phone = validatedCheckout.phone.trim(),
+            billingType = validatedCheckout.billingType,
+            nit = if (
+                validatedCheckout.billingType == BillingType.NIT
+            ) {
+                validatedCheckout.nit.trim()
+            } else {
+                null
+            },
+            businessName = if (
+                validatedCheckout.billingType == BillingType.NIT
+            ) {
+                validatedCheckout.businessName.trim()
+            } else {
+                null
+            },
+            paymentMethod = validatedCheckout.paymentMethod,
+            total = total
+        )
+
+        _orderReceipt.value = receipt
+
+        _uiState.update { current ->
+            current.copy(
+                orderItems = emptyList(),
+                orderMessage = null
+            )
+        }
+
+        _checkoutUiState.value = CheckoutUiState()
+        nextOrderNumber += 1
+
+        return true
+    }
+
     private fun CheckoutUiState.withRecalculatedValidation():
             CheckoutUiState {
         val updatedFullNameError = validateFullName(fullName)
@@ -318,7 +392,16 @@ class StoreViewModel : ViewModel() {
         )
     }
 
+    private fun formatFolio(orderNumber: Int): String {
+        return String.format(
+            Locale.US,
+            "#ORD-%05d",
+            orderNumber
+        )
+    }
+
     private companion object {
         const val CATALOG_SEED = 2026
+        const val INITIAL_ORDER_NUMBER = 1
     }
 }
