@@ -52,6 +52,7 @@ fun CheckoutScreen(
     uiState: CheckoutUiState,
     orderUnits: Int,
     orderTotal: Double,
+    isConfirmEnabled: Boolean,
     onFullNameChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onBillingTypeChange: (BillingType) -> Unit,
@@ -65,8 +66,6 @@ fun CheckoutScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val nitFocusRequester = remember { FocusRequester() }
-
-    val isConfirmEnabled = uiState.isFormValid && orderUnits > 0
 
     Scaffold(
         modifier = modifier,
