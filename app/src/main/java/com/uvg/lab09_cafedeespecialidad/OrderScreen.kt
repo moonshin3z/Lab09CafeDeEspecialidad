@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -40,7 +42,9 @@ fun OrderScreen(
     onIncrease: (String) -> Unit,
     onDecrease: (String) -> Unit,
     onRemove: (String) -> Unit,
-    onBack: () -> Unit
+    onContinueToCheckout: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val productsById = remember(products) {
         products.associateBy { product ->
@@ -48,7 +52,28 @@ fun OrderScreen(
         }
     }
 
+    val orderUnits = orderItems.sumOf { orderItem ->
+        orderItem.quantity
+    }
+
     Scaffold(
+        modifier = modifier,
+        bottomBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(16.dp)
+            ) {
+                Button(
+                    onClick = onContinueToCheckout,
+                    enabled = orderUnits > 0,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Continuar al checkout")
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {

@@ -8,8 +8,10 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,6 +45,14 @@ fun StoreApp(
 
     val orderUnitCount = uiState.orderItems.sumOf { item ->
         item.quantity
+    }
+
+    // Deja solo el catálogo en el historial para que Atrás no reabra
+    // el checkout ni la confirmación.
+    fun returnToCatalog() {
+        while (backStack.size > 1) {
+            backStack.removeLastOrNull()
+        }
     }
 
     BackHandler(
@@ -168,6 +178,48 @@ fun StoreApp(
                     },
                     onRemove = { productId ->
                         viewModel.removeOrderItem(productId)
+                    },
+                    onContinueToCheckout = {
+                        backStack.add(StoreNavKey.Checkout)
+                    },
+                    onBack = {
+                        backStack.removeLastOrNull()
+                    }
+                )
+            }
+
+            entry<StoreNavKey.Checkout> {
+                val checkoutState =
+                    viewModel.checkoutUiState.collectAsStateWithLifecycle()
+                val storeState =
+                    viewModel.uiState.collectAsStateWithLifecycle()
+
+                val isConfirmEnabled by remember(checkoutState, storeState) {
+                    derivedStateOf {
+                        val units = storeState.value.orderItems.sumOf { item ->
+                            item.quantity
+                        }
+
+                        checkoutState.value.isFormValid && units > 0
+                    }
+                }
+
+                CheckoutScreen(
+                    uiState = checkoutState.value,
+                    orderUnits = orderUnitCount,
+                    orderTotal = viewModel.orderTotal(),
+                    isConfirmEnabled = isConfirmEnabled,
+                    onFullNameChange = viewModel::onFullNameChange,
+                    onPhoneChange = viewModel::onPhoneChange,
+                    onBillingTypeChange = viewModel::onBillingTypeChange,
+                    onNitChange = viewModel::onNitChange,
+                    onBusinessNameChange = viewModel::onBusinessNameChange,
+                    onPaymentMethodChange = viewModel::onPaymentMethodChange,
+                    onConfirmOrder = {
+                        if (viewModel.confirmOrder()) {
+                            returnToCatalog()
+                            backStack.add(StoreNavKey.OrderConfirmation)
+                        }
                     },
                     onBack = {
                         backStack.removeLastOrNull()
