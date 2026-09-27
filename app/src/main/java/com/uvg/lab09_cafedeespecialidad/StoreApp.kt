@@ -227,6 +227,24 @@ fun StoreApp(
                 )
             }
 
+            entry<StoreNavKey.OrderConfirmation> {
+                val receipt by viewModel.orderReceipt.collectAsStateWithLifecycle()
+                val currentReceipt = receipt
+
+                if (currentReceipt == null) {
+                    LaunchedEffect(Unit) {
+                        returnToCatalog()
+                    }
+                } else {
+                    OrderConfirmationScreen(
+                        receipt = currentReceipt,
+                        onBackToCatalog = {
+                            returnToCatalog()
+                        }
+                    )
+                }
+            }
+
             entry<StoreNavKey.Profile> { key ->
                 val profile = uiState.profiles.firstOrNull { currentProfile ->
                     currentProfile.id == key.profileId
