@@ -1,8 +1,19 @@
 package com.uvg.lab09_cafedeespecialidad
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.uvg.lab09_cafedeespecialidad.catalog.sortCatalog
+import com.uvg.lab09_cafedeespecialidad.data.local.StoreDao
+import com.uvg.lab09_cafedeespecialidad.data.local.StorePreferencesKeys
+import com.uvg.lab09_cafedeespecialidad.data.local.entity.FavoriteEntity
+import com.uvg.lab09_cafedeespecialidad.data.local.entity.OrderLineEntity
 import com.uvg.lab09_cafedeespecialidad.model.BillingType
+import com.uvg.lab09_cafedeespecialidad.model.CatalogSortOrder
 import com.uvg.lab09_cafedeespecialidad.model.CheckoutUiState
+import com.uvg.lab09_cafedeespecialidad.model.OrderItem
 import com.uvg.lab09_cafedeespecialidad.model.OrderReceipt
 import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
 import com.uvg.lab09_cafedeespecialidad.model.Product
@@ -13,33 +24,21 @@ import com.uvg.lab09_cafedeespecialidad.order.addToOrder as addToOrderRule
 import com.uvg.lab09_cafedeespecialidad.order.calculateLineSubtotal
 import com.uvg.lab09_cafedeespecialidad.order.calculateOrderTotal
 import com.uvg.lab09_cafedeespecialidad.order.decreaseOrderItem as decreaseOrderItemRule
-import com.uvg.lab09_cafedeespecialidad.order.removeOrderItem as removeOrderItemRule
 import com.uvg.lab09_cafedeespecialidad.validation.validateBusinessName
 import com.uvg.lab09_cafedeespecialidad.validation.validateFullName
 import com.uvg.lab09_cafedeespecialidad.validation.validateNit
 import com.uvg.lab09_cafedeespecialidad.validation.validatePhone
 import java.util.Locale
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import com.uvg.lab09_cafedeespecialidad.data.local.StoreDao
-import com.uvg.lab09_cafedeespecialidad.model.OrderItem
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import androidx.lifecycle.viewModelScope
-import com.uvg.lab09_cafedeespecialidad.data.local.entity.FavoriteEntity
-import kotlinx.coroutines.launch
-import com.uvg.lab09_cafedeespecialidad.data.local.entity.OrderLineEntity
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import com.uvg.lab09_cafedeespecialidad.catalog.sortCatalog
-import com.uvg.lab09_cafedeespecialidad.data.local.StorePreferencesKeys
-import com.uvg.lab09_cafedeespecialidad.model.CatalogSortOrder
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class StoreViewModel(
     private val storeDao: StoreDao,
@@ -99,7 +98,6 @@ class StoreViewModel(
         originals = originalProducts,
         seed = CATALOG_SEED
     )
-
 
     private val orderMessage = MutableStateFlow<String?>(null)
     private val query = MutableStateFlow("")
@@ -189,8 +187,8 @@ class StoreViewModel(
     }
 
     fun onQueryChange(query: String) {
-    this.query.value = query
-}
+        this.query.value = query
+    }
 
     fun onSortOrderChange(sortOrder: CatalogSortOrder) {
         viewModelScope.launch {
@@ -202,34 +200,65 @@ class StoreViewModel(
     }
 
     fun addToOrder(
-    productId: String,
-    increment: Int = 1
-) {
-    val current = uiState.value
-
-    when (
-        val result = addToOrderRule(
-            products = current.products,
-            orderItems = current.orderItems,
-            productId = productId,
-            increment = increment
-        )
+        productId: String,
+        increment: Int = 1
     ) {
-        is OrderUpdateResult.Success -> {
-            val unitLabel = if (increment == 1) {
-                "unidad"
-            } else {
-                "unidades"
+        val current = uiState.value
+
+        when (
+            val result = addToOrderRule(
+                products = current.products,
+                orderItems = current.orderItems,
+                productId = productId,
+                increment = increment
+            )
+        ) {
+            is OrderUpdateResult.Success -> {
+                val unitLabel = if (increment == 1) {
+                    "unidad"
+                } else {
+                    "unidades"
+                }
+
+                orderMessage.value =
+                    "Se agregó $increment $unitLabel al pedido."
+
+                val updatedLine = result.orderItems.first {
+                    it.productId == productId
+                }
+
+                viewModelScope.launch {
+                    storeDao.upsertOrderLine(
+                        OrderLineEntity(
+                            productId = updatedLine.productId,
+                            quantity = updatedLine.quantity
+                        )
+                    )
+                }
             }
 
-            orderMessage.value =
-                "Se agregó $increment $unitLabel al pedido."
+            is OrderUpdateResult.Rejected -> {
+                orderMessage.value = result.reason
+            }
+        }
+    }
 
-            val updatedLine = result.orderItems.first {
+    fun decreaseOrderItem(productId: String) {
+        val updatedItems = decreaseOrderItemRule(
+            orderItems = uiState.value.orderItems,
+            productId = productId
+        )
+
+        orderMessage.value = null
+
+        viewModelScope.launch {
+            val updatedLine = updatedItems.firstOrNull {
                 it.productId == productId
             }
 
-            viewModelScope.launch {
+            if (updatedLine == null) {
+                storeDao.deleteOrderLine(productId)
+            } else {
                 storeDao.upsertOrderLine(
                     OrderLineEntity(
                         productId = updatedLine.productId,
@@ -238,46 +267,15 @@ class StoreViewModel(
                 )
             }
         }
-
-        is OrderUpdateResult.Rejected -> {
-            orderMessage.value = result.reason
-        }
     }
-}
-
-    fun decreaseOrderItem(productId: String) {
-    val updatedItems = decreaseOrderItemRule(
-        orderItems = uiState.value.orderItems,
-        productId = productId
-    )
-
-    orderMessage.value = null
-
-    viewModelScope.launch {
-        val updatedLine = updatedItems.firstOrNull {
-            it.productId == productId
-        }
-
-        if (updatedLine == null) {
-            storeDao.deleteOrderLine(productId)
-        } else {
-            storeDao.upsertOrderLine(
-                OrderLineEntity(
-                    productId = updatedLine.productId,
-                    quantity = updatedLine.quantity
-                )
-            )
-        }
-    }
-}
 
     fun removeOrderItem(productId: String) {
-    orderMessage.value = null
+        orderMessage.value = null
 
-    viewModelScope.launch {
-        storeDao.deleteOrderLine(productId)
+        viewModelScope.launch {
+            storeDao.deleteOrderLine(productId)
+        }
     }
-}
 
     fun orderSubtotal(productId: String): Double {
         val current = uiState.value
@@ -312,8 +310,8 @@ class StoreViewModel(
     }
 
     fun clearOrderMessage() {
-    orderMessage.value = null
-}
+        orderMessage.value = null
+    }
 
     fun onFullNameChange(value: String) {
         _checkoutUiState.update { current ->
