@@ -43,11 +43,13 @@ fun DetailScreen(
     onToggleFavorite: () -> Unit,
     onAddToOrder: () -> Unit,
     onProfileClick: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var isTechnicalSheetExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(product.name) },
