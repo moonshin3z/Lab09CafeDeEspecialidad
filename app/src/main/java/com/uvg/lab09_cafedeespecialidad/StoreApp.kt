@@ -101,8 +101,10 @@ fun StoreApp(
                     products = uiState.products,
                     favoriteIds = uiState.favoriteIds,
                     query = uiState.query,
+                    sortOrder = uiState.sortOrder,
                     orderUnitCount = orderUnitCount,
                     onQueryChange = viewModel::onQueryChange,
+                    onSortOrderChange = viewModel::onSortOrderChange,
                     onOrderClick = {
                         backStack.add(StoreNavKey.Order)
                     },

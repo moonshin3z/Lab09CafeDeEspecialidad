@@ -20,7 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.uvg.lab09_cafedeespecialidad.model.CatalogSortOrder
 import com.uvg.lab09_cafedeespecialidad.model.Product
+import com.uvg.lab09_cafedeespecialidad.ui.components.CatalogSortSelector
 import com.uvg.lab09_cafedeespecialidad.ui.components.ProductCard
 import com.uvg.lab09_cafedeespecialidad.ui.components.ScrollToTopButton
 import com.uvg.lab09_cafedeespecialidad.ui.components.SearchBar
@@ -31,12 +33,15 @@ fun CatalogScreen(
     products: List<Product>,
     favoriteIds: Set<String>,
     query: String,
+    sortOrder: CatalogSortOrder,
     orderUnitCount: Int,
     gridState: LazyGridState,
     onQueryChange: (String) -> Unit,
+    onSortOrderChange: (CatalogSortOrder) -> Unit,
     onOrderClick: () -> Unit,
     onProductClick: (String) -> Unit,
-    onToggleFavorite: (String) -> Unit
+    onToggleFavorite: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val normalizedQuery = query.trim()
 
@@ -54,6 +59,7 @@ fun CatalogScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
@@ -96,6 +102,17 @@ fun CatalogScreen(
                     query = query,
                     resultCount = filteredProducts.size,
                     onQueryChange = onQueryChange
+                )
+            }
+
+            item(
+                span = {
+                    GridItemSpan(maxLineSpan)
+                }
+            ) {
+                CatalogSortSelector(
+                    sortOrder = sortOrder,
+                    onSortOrderChange = onSortOrderChange
                 )
             }
 
