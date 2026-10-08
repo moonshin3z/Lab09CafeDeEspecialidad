@@ -163,9 +163,9 @@ class StoreViewModel(
     private var nextOrderNumber = INITIAL_ORDER_NUMBER
 
     init {
-        check(uiState.value.products.size == 500)
+        check(products.size == 500)
         check(
-            uiState.value.products
+            products
                 .map { product -> product.id }
                 .distinct()
                 .size == 500
