@@ -3,6 +3,7 @@ package com.uvg.lab09_cafedeespecialidad
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -105,6 +106,37 @@ class StoreViewModelPersistenceTest {
                     lines.isEmpty()
                 }
             }
+        }
+    }
+
+    @Test
+    fun rejectedOrderUpdateDoesNotReachDatabase() {
+        runBlocking {
+            val dao = FakeStoreDao()
+            val viewModel = StoreViewModel(
+                storeDao = dao,
+                preferencesDataStore = FakePreferencesDataStore()
+            )
+
+            viewModel.addToOrder(
+                productId = "cafe-geisha",
+                increment = 3
+            )
+            viewModel.awaitOrderUnits(3)
+
+            viewModel.addToOrder("cafe-geisha")
+
+            val rejectedState = withTimeout(1_000) {
+                viewModel.uiState.first { state ->
+                    state.orderMessage ==
+                        "No hay existencias suficientes. Máximo disponible: 3."
+                }
+            }
+            val savedLines = dao.observeOrderLines().first()
+
+            assertEquals(3, rejectedState.orderItems.single().quantity)
+            assertEquals(1, savedLines.size)
+            assertEquals(3, savedLines.single().quantity)
         }
     }
 }
