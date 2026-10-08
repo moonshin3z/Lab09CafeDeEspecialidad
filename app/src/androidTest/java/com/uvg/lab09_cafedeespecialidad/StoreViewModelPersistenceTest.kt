@@ -33,6 +33,12 @@ class StoreViewModelPersistenceTest {
                 }
             )
 
+            withTimeout(1_000) {
+                viewModel.uiState.first { state ->
+                    "cafe-geisha" in state.favoriteIds
+                }
+            }
+
             viewModel.toggleFavorite("cafe-geisha")
 
             val favoritesAfterDelete = withTimeout(1_000) {
@@ -63,6 +69,7 @@ class StoreViewModelPersistenceTest {
                     lines.singleOrNull()?.quantity == 1
                 }
             }
+            viewModel.awaitOrderUnits(1)
 
             viewModel.decreaseOrderItem("cafe-geisha")
 
@@ -71,6 +78,7 @@ class StoreViewModelPersistenceTest {
                     lines.isEmpty()
                 }
             }
+            viewModel.awaitOrderUnits(0)
 
             viewModel.addToOrder("cafe-bourbon")
 
