@@ -32,9 +32,18 @@ import androidx.lifecycle.viewModelScope
 import com.uvg.lab09_cafedeespecialidad.data.local.entity.FavoriteEntity
 import kotlinx.coroutines.launch
 import com.uvg.lab09_cafedeespecialidad.data.local.entity.OrderLineEntity
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import com.uvg.lab09_cafedeespecialidad.catalog.sortCatalog
+import com.uvg.lab09_cafedeespecialidad.data.local.StorePreferencesKeys
+import com.uvg.lab09_cafedeespecialidad.model.CatalogSortOrder
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class StoreViewModel(
-    private val storeDao: StoreDao
+    private val storeDao: StoreDao,
+    private val preferencesDataStore: DataStore<Preferences>
 ) : ViewModel() {
     private val originalProducts = listOf(
         Product(
@@ -95,14 +104,26 @@ class StoreViewModel(
     private val orderMessage = MutableStateFlow<String?>(null)
     private val query = MutableStateFlow("")
 
+    private val catalogSortOrder: Flow<CatalogSortOrder> =
+        preferencesDataStore.data.map { preferences ->
+            CatalogSortOrder.fromStorageValue(
+                preferences[StorePreferencesKeys.CATALOG_SORT_ORDER]
+                    ?: CatalogSortOrder.NAME.storageValue
+            )
+        }
+
     val uiState: StateFlow<StoreUiState> = combine(
         storeDao.observeFavorites(),
         storeDao.observeOrderLines(),
+        catalogSortOrder,
         query,
         orderMessage
-    ) { favorites, orderLines, currentQuery, currentOrderMessage ->
+    ) { favorites, orderLines, sortOrder, currentQuery, currentOrderMessage ->
         StoreUiState(
-            products = products,
+            products = sortCatalog(
+                products = products,
+                sortOrder = sortOrder
+            ),
             profiles = originalProfiles,
             favoriteIds = favorites.map { it.productId }.toSet(),
             query = currentQuery,
@@ -112,14 +133,19 @@ class StoreViewModel(
                     quantity = line.quantity
                 )
             },
-            orderMessage = currentOrderMessage
+            orderMessage = currentOrderMessage,
+            sortOrder = sortOrder
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = StoreUiState(
-            products = products,
-            profiles = originalProfiles
+            products = sortCatalog(
+                products = products,
+                sortOrder = CatalogSortOrder.NAME
+            ),
+            profiles = originalProfiles,
+            sortOrder = CatalogSortOrder.NAME
         )
     )
 
@@ -165,6 +191,15 @@ class StoreViewModel(
     fun onQueryChange(query: String) {
     this.query.value = query
 }
+
+    fun onSortOrderChange(sortOrder: CatalogSortOrder) {
+        viewModelScope.launch {
+            preferencesDataStore.edit { preferences ->
+                preferences[StorePreferencesKeys.CATALOG_SORT_ORDER] =
+                    sortOrder.storageValue
+            }
+        }
+    }
 
     fun addToOrder(
     productId: String,

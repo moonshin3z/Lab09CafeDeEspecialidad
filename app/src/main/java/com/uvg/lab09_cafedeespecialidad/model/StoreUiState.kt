@@ -6,5 +6,6 @@ data class StoreUiState(
     val favoriteIds: Set<String> = emptySet(),
     val query: String = "",
     val orderItems: List<OrderItem> = emptyList(),
-    val orderMessage: String? = null
+    val orderMessage: String? = null,
+    val sortOrder: CatalogSortOrder = CatalogSortOrder.NAME
 )

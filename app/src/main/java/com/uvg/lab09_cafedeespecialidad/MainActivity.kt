@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.uvg.lab09_cafedeespecialidad.data.local.StoreDatabase
+import com.uvg.lab09_cafedeespecialidad.data.local.storePreferencesDataStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,6 +17,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val database = StoreDatabase.getInstance(applicationContext)
+        val preferencesDataStore = applicationContext.storePreferencesDataStore
 
         setContent {
             Lab09CafeDeEspecialidadTheme {
@@ -24,7 +26,8 @@ class MainActivity : ComponentActivity() {
                         factory = viewModelFactory {
                             initializer {
                                 StoreViewModel(
-                                    storeDao = database.storeDao()
+                                    storeDao = database.storeDao(),
+                                    preferencesDataStore = preferencesDataStore
                                 )
                             }
                         }

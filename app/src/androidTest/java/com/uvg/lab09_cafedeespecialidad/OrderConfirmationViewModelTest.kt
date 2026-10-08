@@ -12,7 +12,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun invalidFormDoesNotConfirmOrClearOrder() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder("cafe-geisha")
 
@@ -30,7 +33,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun emptyOrderCannotBeConfirmedWithValidForm() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("María Morales")
         viewModel.onPhoneChange("55123456")
@@ -44,7 +50,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun validCfOrderCreatesReceiptAndClearsOrder() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder("cafe-geisha")
         viewModel.onFullNameChange("María Morales")
@@ -75,7 +84,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun receiptKeepsTotalAfterOrderIsCleared() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder(
             productId = "cafe-geisha",
@@ -99,7 +111,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun successfulConfirmationResetsCheckoutForm() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder("cafe-geisha")
         viewModel.onFullNameChange("María Morales")
@@ -130,7 +145,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun nitOrderStoresFiscalInformationInReceipt() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder("cafe-bourbon")
         viewModel.onFullNameChange("Alberto Guzmán")
@@ -165,7 +183,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun cfReceiptExcludesPreservedFiscalText() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder("cafe-geisha")
         viewModel.onFullNameChange("María Morales")
@@ -188,7 +209,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun foliosIncreaseOnlyAfterSuccessfulConfirmation() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder("cafe-geisha")
 
@@ -219,7 +243,10 @@ class OrderConfirmationViewModelTest {
 
     @Test
     fun receiptTrimsContactAndFiscalValues() {
-        val viewModel = StoreViewModel(storeDao = FakeStoreDao())
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.addToOrder("cafe-bourbon")
         viewModel.onFullNameChange("  Alberto Guzmán  ")

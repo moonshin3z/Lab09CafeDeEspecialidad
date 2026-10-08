@@ -12,7 +12,10 @@ class StoreViewModelPersistenceTest {
     fun toggleFavoriteInsertsAndDeletesFavorite() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(storeDao = dao)
+            val viewModel = StoreViewModel(
+                storeDao = dao,
+                preferencesDataStore = FakePreferencesDataStore()
+            )
 
             viewModel.uiState.first()
 
@@ -46,7 +49,10 @@ class StoreViewModelPersistenceTest {
     fun zeroQuantityAndConfirmationDeleteOrderLines() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(storeDao = dao)
+            val viewModel = StoreViewModel(
+                storeDao = dao,
+                preferencesDataStore = FakePreferencesDataStore()
+            )
 
             viewModel.uiState.first()
 
