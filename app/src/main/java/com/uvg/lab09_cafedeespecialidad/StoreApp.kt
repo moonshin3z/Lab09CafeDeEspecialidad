@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
@@ -23,6 +24,7 @@ import com.uvg.lab09_cafedeespecialidad.navigation.StoreNavKey
 
 @Composable
 fun StoreApp(
+    modifier: Modifier = Modifier,
     viewModel: StoreViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -63,6 +65,7 @@ fun StoreApp(
 
     NavDisplay(
         backStack = backStack,
+        modifier = modifier,
         onBack = {
             if (backStack.size > 1) {
                 backStack.removeLastOrNull()
@@ -101,8 +104,10 @@ fun StoreApp(
                     products = uiState.products,
                     favoriteIds = uiState.favoriteIds,
                     query = uiState.query,
+                    sortOrder = uiState.sortOrder,
                     orderUnitCount = orderUnitCount,
                     onQueryChange = viewModel::onQueryChange,
+                    onSortOrderChange = viewModel::onSortOrderChange,
                     onOrderClick = {
                         backStack.add(StoreNavKey.Order)
                     },

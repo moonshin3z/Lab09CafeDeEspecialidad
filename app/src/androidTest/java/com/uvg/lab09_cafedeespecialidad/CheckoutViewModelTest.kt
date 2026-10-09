@@ -12,7 +12,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun checkoutStartsInCfWithoutVisibleErrors() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
         val state = viewModel.checkoutUiState.value
 
         assertEquals(BillingType.CF, state.billingType)
@@ -40,7 +43,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun editingFullNameMarksFieldAsTouched() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("Al")
 
@@ -57,7 +63,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun correctingFullNameRemovesItsError() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("Al")
         viewModel.onFullNameChange("Alberto Guzmán")
@@ -70,7 +79,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun validNameAndPhoneMakeCfFormValid() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("María Morales")
         viewModel.onPhoneChange("55123456")
@@ -86,7 +98,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun selectingNitValidatesFiscalFieldsWithoutTouchingThem() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("María Morales")
         viewModel.onPhoneChange("55123456")
@@ -111,7 +126,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun editingInvalidNitMarksItAsTouched() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onBillingTypeChange(BillingType.NIT)
         viewModel.onNitChange("4512")
@@ -127,7 +145,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun validFiscalFieldsMakeNitFormValid() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("Alberto Guzmán")
         viewModel.onPhoneChange("55442211")
@@ -148,7 +169,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun changingFromNitToCfClearsFiscalErrorsAndTouchedState() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("Alberto Guzmán")
         viewModel.onPhoneChange("55442211")
@@ -170,7 +194,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun changingToCfPreservesFiscalText() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onBillingTypeChange(BillingType.NIT)
         viewModel.onNitChange("4512")
@@ -186,7 +213,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun returningToNitRevalidatesFiscalFieldsWithoutTouchingThem() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("Alberto Guzmán")
         viewModel.onPhoneChange("55442211")
@@ -215,7 +245,10 @@ class CheckoutViewModelTest {
 
     @Test
     fun paymentMethodCanBeChangedWithoutLosingFormData() {
-        val viewModel = StoreViewModel()
+        val viewModel = StoreViewModel(
+            storeDao = FakeStoreDao(),
+            preferencesDataStore = FakePreferencesDataStore()
+        )
 
         viewModel.onFullNameChange("María Morales")
         viewModel.onPhoneChange("55123456")

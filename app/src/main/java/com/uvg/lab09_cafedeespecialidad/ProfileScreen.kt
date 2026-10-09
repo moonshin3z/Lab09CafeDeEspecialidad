@@ -26,9 +26,11 @@ import com.uvg.lab09_cafedeespecialidad.model.Profile
 @Composable
 fun ProfileScreen(
     profile: Profile,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Perfil del productor") },
