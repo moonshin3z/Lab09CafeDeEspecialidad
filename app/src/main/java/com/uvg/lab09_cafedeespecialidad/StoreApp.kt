@@ -21,6 +21,11 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.uvg.lab09_cafedeespecialidad.navigation.StoreNavKey
+import com.uvg.lab09_cafedeespecialidad.navigation.MyOrders
+import com.uvg.lab09_cafedeespecialidad.navigation.OrderDetail
+import com.uvg.lab09_cafedeespecialidad.orders.OrderDetailScreen
+import com.uvg.lab09_cafedeespecialidad.orders.OrdersScreen
+import com.uvg.lab09_cafedeespecialidad.orders.OrdersViewModel
 
 @Composable
 fun StoreApp(
@@ -28,6 +33,15 @@ fun StoreApp(
     viewModel: StoreViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val ordersViewModel: OrdersViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel()
+
+    val ordersUiState by
+    ordersViewModel.ordersUiState.collectAsStateWithLifecycle()
+
+    val orderDetailUiState by
+    ordersViewModel.orderDetailUiState.collectAsStateWithLifecycle()
 
     val backStack = rememberNavBackStack(
         StoreNavKey.Catalog
@@ -111,6 +125,10 @@ fun StoreApp(
                     onOrderClick = {
                         backStack.add(StoreNavKey.Order)
                     },
+                    onMyOrdersClick = {
+                        ordersViewModel.loadOrders()
+                        backStack.add(MyOrders)
+                    },
                     gridState = catalogGridState,
                     onProductClick = { productId ->
                         viewModel.clearOrderMessage()
@@ -120,6 +138,36 @@ fun StoreApp(
                     },
                     onToggleFavorite = { productId ->
                         viewModel.toggleFavorite(productId)
+                    }
+                )
+            }
+
+            entry<MyOrders> {
+                OrdersScreen(
+                    uiState = ordersUiState,
+                    onRetry = {
+                        ordersViewModel.loadOrders()
+                    },
+                    onOrderClick = { orderId ->
+                        ordersViewModel.loadOrderDetail(orderId)
+                        backStack.add(
+                            OrderDetail(orderId = orderId)
+                        )
+                    },
+                    onCatalogClick = {
+                        returnToCatalog()
+                    }
+                )
+            }
+
+            entry<OrderDetail> { key ->
+                OrderDetailScreen(
+                    uiState = orderDetailUiState,
+                    onRetry = {
+                        ordersViewModel.loadOrderDetail(key.orderId)
+                    },
+                    onBack = {
+                        backStack.removeLastOrNull()
                     }
                 )
             }
