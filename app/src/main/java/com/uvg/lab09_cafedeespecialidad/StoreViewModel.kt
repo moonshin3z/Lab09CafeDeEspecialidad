@@ -45,6 +45,7 @@ import com.uvg.lab09_cafedeespecialidad.remote.OrderApiClient
 import com.uvg.lab09_cafedeespecialidad.remote.buildNewOrderDto
 import java.io.IOException
 import retrofit2.HttpException
+import kotlinx.serialization.SerializationException
 
 class StoreViewModel(
     private val storeDao: StoreDao,
@@ -473,6 +474,10 @@ fun confirmOrder() {
         } catch (_: HttpException) {
             _orderSubmissionState.value = OrderSubmissionState.Error(
                 message = "El servidor no pudo guardar el pedido. Intenta de nuevo."
+            )
+        } catch (_: SerializationException){
+            _orderSubmissionState.value = OrderSubmissionState.Error(
+                message = "La respues del servidor no tiene el formato esperado"
             )
         }
     }
