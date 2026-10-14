@@ -432,7 +432,7 @@ fun confirmOrder() {
 
     viewModelScope.launch {
         try {
-            orderApi.createOrder(remoteOrder)
+            val createdOrder = orderApi.createOrder(remoteOrder)
 
             val total = calculateOrderTotal(
                 products = currentStore.products,
@@ -441,6 +441,7 @@ fun confirmOrder() {
 
             _orderReceipt.value = OrderReceipt(
                 folio = formatFolio(nextOrderNumber),
+                serverOrderId = createdOrder.id,
                 customerName = validatedCheckout.fullName.trim(),
                 phone = validatedCheckout.phone.trim(),
                 billingType = validatedCheckout.billingType,
