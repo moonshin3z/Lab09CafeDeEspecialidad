@@ -51,6 +51,8 @@ dependencies {
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.retrofit.core)
+    implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.coil.compose)
@@ -68,4 +70,5 @@ dependencies {
     add("ksp", libs.androidx.room3.compiler)
     implementation(libs.androidx.sqlite.framework)
     implementation(libs.androidx.datastore.preferences)
+
 }

@@ -86,6 +86,10 @@ fun OrderConfirmationScreen(
                             value = receipt.folio
                         )
                         ReceiptRow(
+                            label = "ID del servidor",
+                            value = receipt.serverOrderId
+                        )
+                        ReceiptRow(
                             label = "Cliente",
                             value = receipt.customerName
                         )
@@ -198,6 +202,7 @@ private fun OrderConfirmationScreenPreview() {
         OrderConfirmationScreen(
             receipt = OrderReceipt(
                 folio = "#ORD-00001",
+                serverOrderId = "test-order-1",
                 customerName = "Alberto Guzmán",
                 phone = "55442211",
                 billingType = BillingType.NIT,

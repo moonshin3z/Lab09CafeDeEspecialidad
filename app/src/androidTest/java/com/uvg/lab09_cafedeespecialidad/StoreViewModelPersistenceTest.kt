@@ -6,6 +6,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 
 class StoreViewModelPersistenceTest {
 
@@ -58,7 +59,8 @@ class StoreViewModelPersistenceTest {
             val dao = FakeStoreDao()
             val viewModel = StoreViewModel(
                 storeDao = dao,
-                preferencesDataStore = FakePreferencesDataStore()
+                preferencesDataStore = FakePreferencesDataStore(),
+                orderApi = FakeOrderApi()
             )
 
             viewModel.uiState.first()
@@ -99,7 +101,13 @@ class StoreViewModelPersistenceTest {
             viewModel.onFullNameChange("María Morales")
             viewModel.onPhoneChange("55123456")
 
-            assertTrue(viewModel.confirmOrder())
+            viewModel.confirmOrder()
+
+            withTimeout(1_000) {
+                viewModel.orderSubmissionState.first { state ->
+                    state is OrderSubmissionState.Success
+                }
+            }
 
             withTimeout(1_000) {
                 dao.observeOrderLines().first { lines ->

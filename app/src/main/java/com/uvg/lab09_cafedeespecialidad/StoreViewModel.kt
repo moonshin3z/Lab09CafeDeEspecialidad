@@ -39,10 +39,18 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
+import com.uvg.lab09_cafedeespecialidad.remote.OrderApi
+import com.uvg.lab09_cafedeespecialidad.remote.OrderApiClient
+import com.uvg.lab09_cafedeespecialidad.remote.buildNewOrderDto
+import java.io.IOException
+import retrofit2.HttpException
+import kotlinx.serialization.SerializationException
 
 class StoreViewModel(
     private val storeDao: StoreDao,
-    private val preferencesDataStore: DataStore<Preferences>
+    private val preferencesDataStore: DataStore<Preferences>,
+    private val orderApi: OrderApi = OrderApiClient.orderApi
 ) : ViewModel() {
     private val originalProducts = listOf(
         Product(
@@ -156,6 +164,13 @@ class StoreViewModel(
 
     private val _orderReceipt =
         MutableStateFlow<OrderReceipt?>(null)
+    private val _orderSubmissionState =
+    MutableStateFlow<OrderSubmissionState>(
+        OrderSubmissionState.Idle
+    )
+
+    val orderSubmissionState: StateFlow<OrderSubmissionState> =
+    _orderSubmissionState.asStateFlow()
 
     val orderReceipt: StateFlow<OrderReceipt?> =
         _orderReceipt.asStateFlow()
@@ -386,63 +401,91 @@ class StoreViewModel(
         }
     }
 
-    fun confirmOrder(): Boolean {
-        val validatedCheckout =
-            _checkoutUiState.value.withRecalculatedValidation()
-
-        _checkoutUiState.value = validatedCheckout
-
-        val currentStore = uiState.value
-        val units = currentStore.orderItems.sumOf { orderItem ->
-            orderItem.quantity
-        }
-
-        if (!validatedCheckout.isFormValid || units <= 0) {
-            return false
-        }
-
-        val total = calculateOrderTotal(
-            products = currentStore.products,
-            orderItems = currentStore.orderItems
-        )
-
-        val receipt = OrderReceipt(
-            folio = formatFolio(nextOrderNumber),
-            customerName = validatedCheckout.fullName.trim(),
-            phone = validatedCheckout.phone.trim(),
-            billingType = validatedCheckout.billingType,
-            nit = if (
-                validatedCheckout.billingType == BillingType.NIT
-            ) {
-                validatedCheckout.nit.trim()
-            } else {
-                null
-            },
-            businessName = if (
-                validatedCheckout.billingType == BillingType.NIT
-            ) {
-                validatedCheckout.businessName.trim()
-            } else {
-                null
-            },
-            paymentMethod = validatedCheckout.paymentMethod,
-            total = total
-        )
-
-        _orderReceipt.value = receipt
-
-        orderMessage.value = null
-
-        viewModelScope.launch {
-            storeDao.clearOrderLines()
-        }
-
-        _checkoutUiState.value = CheckoutUiState()
-        nextOrderNumber += 1
-
-        return true
+fun confirmOrder() {
+    if (_orderSubmissionState.value is OrderSubmissionState.Sending) {
+        return
     }
 
+    val validatedCheckout =
+        _checkoutUiState.value.withRecalculatedValidation()
+
+    _checkoutUiState.value = validatedCheckout
+
+    val currentStore = uiState.value
+    val units = currentStore.orderItems.sumOf { orderItem ->
+        orderItem.quantity
+    }
+
+    if (!validatedCheckout.isFormValid || units <= 0) {
+        return
+    }
+
+    val createdAt = System.currentTimeMillis()
+
+    val remoteOrder = buildNewOrderDto(
+        products = currentStore.products,
+        orderItems = currentStore.orderItems,
+        checkout = validatedCheckout,
+        createdAt = createdAt
+    )
+
+    _orderSubmissionState.value = OrderSubmissionState.Sending
+
+    viewModelScope.launch {
+        try {
+            val createdOrder = orderApi.createOrder(remoteOrder)
+
+            val total = calculateOrderTotal(
+                products = currentStore.products,
+                orderItems = currentStore.orderItems
+            )
+
+            _orderReceipt.value = OrderReceipt(
+                folio = formatFolio(nextOrderNumber),
+                serverOrderId = createdOrder.id,
+                customerName = validatedCheckout.fullName.trim(),
+                phone = validatedCheckout.phone.trim(),
+                billingType = validatedCheckout.billingType,
+                nit = if (validatedCheckout.billingType == BillingType.NIT) {
+                    validatedCheckout.nit.trim()
+                } else {
+                    null
+                },
+                businessName = if (
+                    validatedCheckout.billingType == BillingType.NIT
+                ) {
+                    validatedCheckout.businessName.trim()
+                } else {
+                    null
+                },
+                paymentMethod = validatedCheckout.paymentMethod,
+                total = total
+            )
+
+            storeDao.clearOrderLines()
+            _checkoutUiState.value = CheckoutUiState()
+            nextOrderNumber += 1
+
+            _orderSubmissionState.value = OrderSubmissionState.Success
+        } catch (_: IOException) {
+            _orderSubmissionState.value = OrderSubmissionState.Error(
+                message = "No se pudo conectar con el servidor. Intenta de nuevo."
+            )
+        } catch (_: HttpException) {
+            _orderSubmissionState.value = OrderSubmissionState.Error(
+                message = "El servidor no pudo guardar el pedido. Intenta de nuevo."
+            )
+        } catch (_: SerializationException){
+            _orderSubmissionState.value = OrderSubmissionState.Error(
+                message = "La respues del servidor no tiene el formato esperado"
+            )
+        }
+    }
+}
+
+fun resetOrderSubmissionState() {
+    _orderSubmissionState.value = OrderSubmissionState.Idle
+}
     private fun CheckoutUiState.withRecalculatedValidation():
             CheckoutUiState {
         val updatedFullNameError = validateFullName(fullName)

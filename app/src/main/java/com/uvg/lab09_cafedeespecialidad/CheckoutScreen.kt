@@ -45,7 +45,8 @@ import androidx.compose.ui.unit.dp
 import com.uvg.lab09_cafedeespecialidad.model.BillingType
 import com.uvg.lab09_cafedeespecialidad.model.CheckoutUiState
 import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
-
+import androidx.compose.material3.CircularProgressIndicator
+import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
@@ -53,6 +54,7 @@ fun CheckoutScreen(
     orderUnits: Int,
     orderTotal: Double,
     isConfirmEnabled: Boolean,
+    submissionState: OrderSubmissionState,
     onFullNameChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onBillingTypeChange: (BillingType) -> Unit,
@@ -366,18 +368,41 @@ fun CheckoutScreen(
             Button(
                 onClick = onConfirmOrder,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = isConfirmEnabled
+                enabled = isConfirmEnabled &&
+                    submissionState !is OrderSubmissionState.Sending
             ) {
-                Text(
-                    text = "Confirmar pedido (Total Q ${
-                        "%.2f".format(orderTotal)
-                    })"
-                )
-            }
+                when (submissionState) {
+                    OrderSubmissionState.Sending -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator()
+                            Text(text = "Enviando pedido...")
+                        }
+                    }
 
-            if (!isConfirmEnabled) {
+                    is OrderSubmissionState.Error -> {
+                        Text(
+                            text = "Reintentar pedido (Total Q ${
+                                "%.2f".format(orderTotal)
+                            })"
+                        )
+                    }
+
+                    else -> {
+                        Text(
+                            text = "Confirmar pedido (Total Q ${
+                                "%.2f".format(orderTotal)
+                            })"
+                        )
+                    }
+                }
+            }
+            if (submissionState is OrderSubmissionState.Error) {
                 Text(
-                    text = "Completa los campos obligatorios para continuar.",
+                    text = submissionState.message,
+                    color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
             }

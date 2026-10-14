@@ -10,7 +10,11 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -39,6 +43,7 @@ fun CatalogScreen(
     onQueryChange: (String) -> Unit,
     onSortOrderChange: (CatalogSortOrder) -> Unit,
     onOrderClick: () -> Unit,
+    onMyOrdersClick: () -> Unit,
     onProductClick: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -66,6 +71,13 @@ fun CatalogScreen(
                     Text("Café de Especialidad")
                 },
                 actions = {
+                    IconButton(onClick = onMyOrdersClick) {
+                        Icon(
+                            imageVector = Icons.Filled.ReceiptLong,
+                            contentDescription = "Mis pedidos"
+                        )
+                    }
+
                     TextButton(onClick = onOrderClick) {
                         Text("Pedido · $orderUnitCount")
                     }
@@ -129,6 +141,7 @@ fun CatalogScreen(
                             text = "No encontramos productos.",
                             style = MaterialTheme.typography.bodyLarge
                         )
+
                         Text(
                             text = "Prueba con otra búsqueda o usa Limpiar.",
                             style = MaterialTheme.typography.bodyMedium

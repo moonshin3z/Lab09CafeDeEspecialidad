@@ -21,6 +21,12 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.uvg.lab09_cafedeespecialidad.navigation.StoreNavKey
+import com.uvg.lab09_cafedeespecialidad.navigation.MyOrders
+import com.uvg.lab09_cafedeespecialidad.navigation.OrderDetail
+import com.uvg.lab09_cafedeespecialidad.orders.OrderDetailScreen
+import com.uvg.lab09_cafedeespecialidad.orders.OrdersScreen
+import com.uvg.lab09_cafedeespecialidad.orders.OrdersViewModel
+import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 
 @Composable
 fun StoreApp(
@@ -28,6 +34,18 @@ fun StoreApp(
     viewModel: StoreViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val orderSubmissionState by
+    viewModel.orderSubmissionState.collectAsStateWithLifecycle()
+
+    val ordersViewModel: OrdersViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel()
+
+    val ordersUiState by
+    ordersViewModel.ordersUiState.collectAsStateWithLifecycle()
+
+    val orderDetailUiState by
+    ordersViewModel.orderDetailUiState.collectAsStateWithLifecycle()
 
     val backStack = rememberNavBackStack(
         StoreNavKey.Catalog
@@ -54,6 +72,13 @@ fun StoreApp(
     fun returnToCatalog() {
         while (backStack.size > 1) {
             backStack.removeLastOrNull()
+        }
+    }
+    LaunchedEffect(orderSubmissionState) {
+        if (orderSubmissionState == OrderSubmissionState.Success) {
+            returnToCatalog()
+            backStack.add(StoreNavKey.OrderConfirmation)
+            viewModel.resetOrderSubmissionState()
         }
     }
 
@@ -111,6 +136,10 @@ fun StoreApp(
                     onOrderClick = {
                         backStack.add(StoreNavKey.Order)
                     },
+                    onMyOrdersClick = {
+                        ordersViewModel.loadOrders()
+                        backStack.add(MyOrders)
+                    },
                     gridState = catalogGridState,
                     onProductClick = { productId ->
                         viewModel.clearOrderMessage()
@@ -120,6 +149,36 @@ fun StoreApp(
                     },
                     onToggleFavorite = { productId ->
                         viewModel.toggleFavorite(productId)
+                    }
+                )
+            }
+
+            entry<MyOrders> {
+                OrdersScreen(
+                    uiState = ordersUiState,
+                    onRetry = {
+                        ordersViewModel.loadOrders()
+                    },
+                    onOrderClick = { orderId ->
+                        ordersViewModel.loadOrderDetail(orderId)
+                        backStack.add(
+                            OrderDetail(orderId = orderId)
+                        )
+                    },
+                    onCatalogClick = {
+                        returnToCatalog()
+                    }
+                )
+            }
+
+            entry<OrderDetail> { key ->
+                OrderDetailScreen(
+                    uiState = orderDetailUiState,
+                    onRetry = {
+                        ordersViewModel.loadOrderDetail(key.orderId)
+                    },
+                    onBack = {
+                        backStack.removeLastOrNull()
                     }
                 )
             }
@@ -214,18 +273,14 @@ fun StoreApp(
                     orderUnits = orderUnitCount,
                     orderTotal = viewModel.orderTotal(),
                     isConfirmEnabled = isConfirmEnabled,
+                    submissionState = orderSubmissionState,
                     onFullNameChange = viewModel::onFullNameChange,
                     onPhoneChange = viewModel::onPhoneChange,
                     onBillingTypeChange = viewModel::onBillingTypeChange,
                     onNitChange = viewModel::onNitChange,
                     onBusinessNameChange = viewModel::onBusinessNameChange,
                     onPaymentMethodChange = viewModel::onPaymentMethodChange,
-                    onConfirmOrder = {
-                        if (viewModel.confirmOrder()) {
-                            returnToCatalog()
-                            backStack.add(StoreNavKey.OrderConfirmation)
-                        }
-                    },
+                    onConfirmOrder = viewModel::confirmOrder,
                     onBack = {
                         backStack.removeLastOrNull()
                     }

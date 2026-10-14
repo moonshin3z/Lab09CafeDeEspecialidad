@@ -2,6 +2,7 @@ package com.uvg.lab09_cafedeespecialidad.model
 
 data class OrderReceipt(
     val folio: String,
+    val serverOrderId: String,
     val customerName: String,
     val phone: String,
     val billingType: BillingType,
