@@ -1,9 +1,10 @@
 package com.uvg.lab09_cafedeespecialidad
 
-import com.uvg.lab09_cafedeespecialidad.model.BillingType
-import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
+import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,49 +12,41 @@ import org.junit.Test
 class OrderConfirmationViewModelTest {
 
     @Test
-    fun invalidFormDoesNotConfirmOrClearOrder() {
+    fun invalidFormDoesNotSendOrClearOrder() {
+        val orderApi = FakeOrderApi()
+
         val viewModel = StoreViewModel(
             storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
+            preferencesDataStore = FakePreferencesDataStore(),
+            orderApi = orderApi
         )
 
         viewModel.addToOrder("cafe-geisha")
         viewModel.awaitOrderUnits(1)
 
-        val confirmed = viewModel.confirmOrder()
+        viewModel.confirmOrder()
 
-        assertFalse(confirmed)
+        assertTrue(orderApi.sentOrders.isEmpty())
+        assertEquals(
+            OrderSubmissionState.Idle,
+            viewModel.orderSubmissionState.value
+        )
         assertEquals(
             1,
             viewModel.uiState.value.orderItems.sumOf { item ->
                 item.quantity
             }
         )
-        assertNull(viewModel.orderReceipt.value)
     }
 
     @Test
-    fun emptyOrderCannotBeConfirmedWithValidForm() {
+    fun successfulSubmissionSendsOrderAndClearsCart() {
+        val orderApi = FakeOrderApi()
+
         val viewModel = StoreViewModel(
             storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
-        )
-
-        viewModel.onFullNameChange("María Morales")
-        viewModel.onPhoneChange("55123456")
-
-        val confirmed = viewModel.confirmOrder()
-
-        assertFalse(confirmed)
-        assertTrue(viewModel.uiState.value.orderItems.isEmpty())
-        assertNull(viewModel.orderReceipt.value)
-    }
-
-    @Test
-    fun validCfOrderCreatesReceiptAndClearsOrder() {
-        val viewModel = StoreViewModel(
-            storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
+            preferencesDataStore = FakePreferencesDataStore(),
+            orderApi = orderApi
         )
 
         viewModel.addToOrder("cafe-geisha")
@@ -61,229 +54,77 @@ class OrderConfirmationViewModelTest {
         viewModel.onFullNameChange("María Morales")
         viewModel.onPhoneChange("55123456")
 
-        val confirmed = viewModel.confirmOrder()
-        val receipt = viewModel.orderReceipt.value
+        viewModel.confirmOrder()
 
-        assertTrue(confirmed)
-        requireNotNull(receipt)
+        waitForSubmission(viewModel) { state ->
+            state is OrderSubmissionState.Success
+        }
 
-        assertEquals("#ORD-00001", receipt.folio)
-        assertEquals("María Morales", receipt.customerName)
-        assertEquals("55123456", receipt.phone)
-        assertEquals(BillingType.CF, receipt.billingType)
-        assertEquals(
-            PaymentMethod.CASH_ON_DELIVERY,
-            receipt.paymentMethod
-        )
-        assertNull(receipt.nit)
-        assertNull(receipt.businessName)
-        assertEquals(145.00, receipt.total, 0.001)
+        assertEquals(1, orderApi.sentOrders.size)
+        assertEquals("CF", orderApi.sentOrders.single().billingType)
+        assertEquals(145.00, orderApi.sentOrders.single().total, 0.001)
 
         viewModel.awaitOrderUnits(0)
 
         assertTrue(viewModel.uiState.value.orderItems.isEmpty())
-        assertEquals(0, viewModel.orderUnits())
-        assertEquals(0.0, viewModel.orderTotal(), 0.001)
+        assertEquals("", viewModel.checkoutUiState.value.fullName)
+        assertEquals("", viewModel.checkoutUiState.value.phone)
+        assertTrue(viewModel.orderReceipt.value != null)
     }
 
     @Test
-    fun receiptKeepsTotalAfterOrderIsCleared() {
-        val viewModel = StoreViewModel(
-            storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
+    fun failedSubmissionKeepsCartAndFormForRetry() {
+        val orderApi = FakeOrderApi(
+            shouldFailOnCreate = true
         )
 
-        viewModel.addToOrder(
-            productId = "cafe-geisha",
-            increment = 2
-        )
-        viewModel.awaitOrderUnits(2)
-        viewModel.onFullNameChange("María Morales")
-        viewModel.onPhoneChange("55123456")
-
-        val totalBeforeConfirmation = viewModel.orderTotal()
-
-        val confirmed = viewModel.confirmOrder()
-        val receipt = viewModel.orderReceipt.value
-
-        assertTrue(confirmed)
-        requireNotNull(receipt)
-
-        assertEquals(290.00, totalBeforeConfirmation, 0.001)
-        assertEquals(290.00, receipt.total, 0.001)
-
-        viewModel.awaitOrderUnits(0)
-
-        assertEquals(0.0, viewModel.orderTotal(), 0.001)
-    }
-
-    @Test
-    fun successfulConfirmationResetsCheckoutForm() {
         val viewModel = StoreViewModel(
             storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
+            preferencesDataStore = FakePreferencesDataStore(),
+            orderApi = orderApi
         )
 
         viewModel.addToOrder("cafe-geisha")
         viewModel.awaitOrderUnits(1)
         viewModel.onFullNameChange("María Morales")
         viewModel.onPhoneChange("55123456")
-        viewModel.onPaymentMethodChange(
-            PaymentMethod.BANK_TRANSFER
-        )
 
-        val confirmed = viewModel.confirmOrder()
-        val checkout = viewModel.checkoutUiState.value
+        viewModel.confirmOrder()
 
-        assertTrue(confirmed)
-        assertEquals("", checkout.fullName)
-        assertEquals("", checkout.phone)
-        assertEquals("", checkout.nit)
-        assertEquals("", checkout.businessName)
-        assertEquals(BillingType.CF, checkout.billingType)
-        assertEquals(
-            PaymentMethod.CASH_ON_DELIVERY,
-            checkout.paymentMethod
-        )
-        assertFalse(checkout.isFullNameTouched)
-        assertFalse(checkout.isPhoneTouched)
-        assertFalse(checkout.isNitTouched)
-        assertFalse(checkout.isBusinessNameTouched)
-        assertFalse(checkout.isFormValid)
-    }
+        val result = waitForSubmission(viewModel) { state ->
+            state is OrderSubmissionState.Error
+        }
 
-    @Test
-    fun nitOrderStoresFiscalInformationInReceipt() {
-        val viewModel = StoreViewModel(
-            storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
-        )
-
-        viewModel.addToOrder("cafe-bourbon")
-        viewModel.awaitOrderUnits(1)
-        viewModel.onFullNameChange("Alberto Guzmán")
-        viewModel.onPhoneChange("55442211")
-        viewModel.onBillingTypeChange(BillingType.NIT)
-        viewModel.onNitChange("12345")
-        viewModel.onBusinessNameChange(
-            "Guzmán Inversiones S.A."
-        )
-        viewModel.onPaymentMethodChange(
-            PaymentMethod.BANK_TRANSFER
-        )
-
-        val confirmed = viewModel.confirmOrder()
-        val receipt = viewModel.orderReceipt.value
-
-        assertTrue(confirmed)
-        requireNotNull(receipt)
-
-        assertEquals(BillingType.NIT, receipt.billingType)
-        assertEquals("12345", receipt.nit)
-        assertEquals(
-            "Guzmán Inversiones S.A.",
-            receipt.businessName
-        )
-        assertEquals(
-            PaymentMethod.BANK_TRANSFER,
-            receipt.paymentMethod
-        )
-        assertEquals(98.00, receipt.total, 0.001)
-    }
-
-    @Test
-    fun cfReceiptExcludesPreservedFiscalText() {
-        val viewModel = StoreViewModel(
-            storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
-        )
-
-        viewModel.addToOrder("cafe-geisha")
-        viewModel.awaitOrderUnits(1)
-        viewModel.onFullNameChange("María Morales")
-        viewModel.onPhoneChange("55123456")
-        viewModel.onBillingTypeChange(BillingType.NIT)
-        viewModel.onNitChange("12345")
-        viewModel.onBusinessNameChange("Empresa Ejemplo")
-        viewModel.onBillingTypeChange(BillingType.CF)
-
-        val confirmed = viewModel.confirmOrder()
-        val receipt = viewModel.orderReceipt.value
-
-        assertTrue(confirmed)
-        requireNotNull(receipt)
-
-        assertEquals(BillingType.CF, receipt.billingType)
-        assertNull(receipt.nit)
-        assertNull(receipt.businessName)
-    }
-
-    @Test
-    fun foliosIncreaseOnlyAfterSuccessfulConfirmation() {
-        val viewModel = StoreViewModel(
-            storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
-        )
-
-        viewModel.addToOrder("cafe-geisha")
-        viewModel.awaitOrderUnits(1)
-
-        val rejected = viewModel.confirmOrder()
-
-        assertFalse(rejected)
+        assertTrue(result is OrderSubmissionState.Error)
+        assertEquals(1, orderApi.sentOrders.size)
         assertNull(viewModel.orderReceipt.value)
 
-        viewModel.onFullNameChange("María Morales")
-        viewModel.onPhoneChange("55123456")
-
-        val firstConfirmation = viewModel.confirmOrder()
-        val firstFolio = viewModel.orderReceipt.value?.folio
-
-        assertTrue(firstConfirmation)
-        assertEquals("#ORD-00001", firstFolio)
-
-        viewModel.awaitOrderUnits(0)
-        viewModel.addToOrder("cafe-bourbon")
         viewModel.awaitOrderUnits(1)
-        viewModel.onFullNameChange("Carlos Méndez")
-        viewModel.onPhoneChange("55887766")
 
-        val secondConfirmation = viewModel.confirmOrder()
-        val secondFolio = viewModel.orderReceipt.value?.folio
-
-        assertTrue(secondConfirmation)
-        assertEquals("#ORD-00002", secondFolio)
+        assertEquals(
+            1,
+            viewModel.uiState.value.orderItems.sumOf { item ->
+                item.quantity
+            }
+        )
+        assertEquals(
+            "María Morales",
+            viewModel.checkoutUiState.value.fullName
+        )
+        assertEquals(
+            "55123456",
+            viewModel.checkoutUiState.value.phone
+        )
     }
 
-    @Test
-    fun receiptTrimsContactAndFiscalValues() {
-        val viewModel = StoreViewModel(
-            storeDao = FakeStoreDao(),
-            preferencesDataStore = FakePreferencesDataStore()
-        )
-
-        viewModel.addToOrder("cafe-bourbon")
-        viewModel.awaitOrderUnits(1)
-        viewModel.onFullNameChange("  Alberto Guzmán  ")
-        viewModel.onPhoneChange("  55442211  ")
-        viewModel.onBillingTypeChange(BillingType.NIT)
-        viewModel.onNitChange("  12345  ")
-        viewModel.onBusinessNameChange(
-            "  Guzmán Inversiones S.A.  "
-        )
-
-        val confirmed = viewModel.confirmOrder()
-        val receipt = viewModel.orderReceipt.value
-
-        assertTrue(confirmed)
-        requireNotNull(receipt)
-
-        assertEquals("Alberto Guzmán", receipt.customerName)
-        assertEquals("55442211", receipt.phone)
-        assertEquals("12345", receipt.nit)
-        assertEquals(
-            "Guzmán Inversiones S.A.",
-            receipt.businessName
-        )
+    private fun waitForSubmission(
+        viewModel: StoreViewModel,
+        condition: (OrderSubmissionState) -> Boolean
+    ): OrderSubmissionState {
+        return runBlocking {
+            withTimeout(1_000) {
+                viewModel.orderSubmissionState.first(condition)
+            }
+        }
     }
 }

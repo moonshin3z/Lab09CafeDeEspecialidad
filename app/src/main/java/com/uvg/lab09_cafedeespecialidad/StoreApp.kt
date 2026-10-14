@@ -26,6 +26,7 @@ import com.uvg.lab09_cafedeespecialidad.navigation.OrderDetail
 import com.uvg.lab09_cafedeespecialidad.orders.OrderDetailScreen
 import com.uvg.lab09_cafedeespecialidad.orders.OrdersScreen
 import com.uvg.lab09_cafedeespecialidad.orders.OrdersViewModel
+import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 
 @Composable
 fun StoreApp(
@@ -33,6 +34,9 @@ fun StoreApp(
     viewModel: StoreViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val orderSubmissionState by
+    viewModel.orderSubmissionState.collectAsStateWithLifecycle()
 
     val ordersViewModel: OrdersViewModel =
         androidx.lifecycle.viewmodel.compose.viewModel()
@@ -68,6 +72,13 @@ fun StoreApp(
     fun returnToCatalog() {
         while (backStack.size > 1) {
             backStack.removeLastOrNull()
+        }
+    }
+    LaunchedEffect(orderSubmissionState) {
+        if (orderSubmissionState == OrderSubmissionState.Success) {
+            returnToCatalog()
+            backStack.add(StoreNavKey.OrderConfirmation)
+            viewModel.resetOrderSubmissionState()
         }
     }
 
@@ -262,18 +273,14 @@ fun StoreApp(
                     orderUnits = orderUnitCount,
                     orderTotal = viewModel.orderTotal(),
                     isConfirmEnabled = isConfirmEnabled,
+                    submissionState = orderSubmissionState,
                     onFullNameChange = viewModel::onFullNameChange,
                     onPhoneChange = viewModel::onPhoneChange,
                     onBillingTypeChange = viewModel::onBillingTypeChange,
                     onNitChange = viewModel::onNitChange,
                     onBusinessNameChange = viewModel::onBusinessNameChange,
                     onPaymentMethodChange = viewModel::onPaymentMethodChange,
-                    onConfirmOrder = {
-                        if (viewModel.confirmOrder()) {
-                            returnToCatalog()
-                            backStack.add(StoreNavKey.OrderConfirmation)
-                        }
-                    },
+                    onConfirmOrder = viewModel::confirmOrder,
                     onBack = {
                         backStack.removeLastOrNull()
                     }
