@@ -8,6 +8,8 @@ Se utilizó ChatGPT (OpenAI) como apoyo para comprender los requisitos del labor
 
 Las decisiones finales de implementación, la ejecución de la aplicación, las pruebas en el emulador, las comprobaciones manuales y la validación de los resultados corresponden al equipo.
 
+También se utilizó Claude (Anthropic) como apoyo durante el desarrollo y revisión de cambios del laboratorio.
+
 ## Otros recursos
 
 Se consultó documentación oficial de Android Developers sobre ViewModel, `viewModelScope`, StateFlow, pruebas instrumentadas y Network Inspector.
