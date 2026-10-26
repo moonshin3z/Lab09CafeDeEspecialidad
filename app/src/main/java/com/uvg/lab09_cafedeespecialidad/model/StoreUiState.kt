@@ -7,5 +7,7 @@ data class StoreUiState(
     val query: String = "",
     val orderItems: List<OrderItem> = emptyList(),
     val orderMessage: String? = null,
-    val sortOrder: CatalogSortOrder = CatalogSortOrder.NAME
+    val sortOrder: CatalogSortOrder = CatalogSortOrder.NAME,
+    val catalogLoadState: CatalogLoadState =
+        CatalogLoadState.Loading
 )

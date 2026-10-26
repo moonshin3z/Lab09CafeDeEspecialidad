@@ -25,6 +25,7 @@ class AppContainer(
 
     val productRepository: ProductRepository =
         FirestoreProductRepository(
-            firestore = firestore
+            firestore = firestore,
+            authRepository = authRepository
         )
 }

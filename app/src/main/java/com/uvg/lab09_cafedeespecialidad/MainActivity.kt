@@ -17,6 +17,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val container =
+            (application as StoreApplication).container
+
         val database =
             StoreDatabase.getInstance(applicationContext)
 
@@ -32,7 +35,9 @@ class MainActivity : ComponentActivity() {
                                 StoreViewModel(
                                     storeDao = database.storeDao(),
                                     preferencesDataStore =
-                                        preferencesDataStore
+                                        preferencesDataStore,
+                                    productRepository =
+                                        container.productRepository
                                 )
                             }
                         }

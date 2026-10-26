@@ -130,8 +130,10 @@ fun StoreApp(
                     favoriteIds = uiState.favoriteIds,
                     query = uiState.query,
                     sortOrder = uiState.sortOrder,
+                    catalogLoadState = uiState.catalogLoadState,
                     orderUnitCount = orderUnitCount,
                     onQueryChange = viewModel::onQueryChange,
+                    onRetryCatalog = viewModel::retryCatalog,
                     onSortOrderChange = viewModel::onSortOrderChange,
                     onOrderClick = {
                         backStack.add(StoreNavKey.Order)

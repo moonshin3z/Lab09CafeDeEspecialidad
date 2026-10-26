@@ -46,44 +46,18 @@ import com.uvg.lab09_cafedeespecialidad.remote.buildNewOrderDto
 import java.io.IOException
 import retrofit2.HttpException
 import kotlinx.serialization.SerializationException
+import com.uvg.lab09_cafedeespecialidad.domain.repository.ProductRepository
+import com.uvg.lab09_cafedeespecialidad.model.CatalogLoadState
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 
 class StoreViewModel(
     private val storeDao: StoreDao,
     private val preferencesDataStore: DataStore<Preferences>,
+    private val productRepository: ProductRepository,
     private val orderApi: OrderApi = OrderApiClient.orderApi
 ) : ViewModel() {
-    private val originalProducts = listOf(
-        Product(
-            id = "cafe-geisha",
-            name = "Geisha de Huehuetenango",
-            description = "Taza floral y delicada, con notas a jazmín, bergamota y un dulzor tipo panela.",
-            price = 145.00,
-            stock = 3,
-            imageUrl = "https://picsum.photos/seed/cafe-geisha/400/400",
-            profileId = "finca-la-esperanza",
-            technicalSheet = "Altitud: 1,850 msnm · Variedad: Geisha · Proceso: Lavado · Secado: Patio y sombra, 12 días."
-        ),
-        Product(
-            id = "cafe-bourbon",
-            name = "Bourbon de Antigua",
-            description = "Cuerpo medio con acidez cítrica equilibrada, notas de chocolate y almendra tostada.",
-            price = 98.00,
-            stock = 8,
-            imageUrl = "https://picsum.photos/seed/cafe-bourbon/400/400",
-            profileId = "finca-la-esperanza",
-            technicalSheet = "Altitud: 1,500 msnm · Variedad: Bourbon Rojo · Proceso: Honey · Secado: Camas africanas, 9 días."
-        ),
-        Product(
-            id = "cafe-caturra",
-            name = "Caturra de Cobán",
-            description = "Perfil suave y balanceado, con notas a caramelo, nuez y final limpio achocolatado.",
-            price = 85.00,
-            stock = 0,
-            imageUrl = "https://picsum.photos/seed/cafe-caturra/400/400",
-            profileId = "cooperativa-chicoj",
-            technicalSheet = "Altitud: 1,300 msnm · Variedad: Caturra · Proceso: Natural · Secado: Marquesina, 15 días."
-        )
-    )
 
     private val originalProfiles = listOf(
         Profile(
@@ -102,10 +76,10 @@ class StoreViewModel(
         )
     )
 
-    private val products = generateCatalog(
-        originals = originalProducts,
-        seed = CATALOG_SEED
-    )
+    private val catalogSnapshot =
+        MutableStateFlow(CatalogSnapshot())
+
+    private var catalogJob: Job? = null
 
     private val orderMessage = MutableStateFlow<String?>(null)
     private val query = MutableStateFlow("")
@@ -118,20 +92,40 @@ class StoreViewModel(
             )
         }
 
+    private val sortedCatalog: Flow<SortedCatalog> =
+        combine(
+            catalogSnapshot,
+            catalogSortOrder
+        ) { snapshot, sortOrder ->
+            SortedCatalog(
+                products = sortCatalog(
+                    products = snapshot.products,
+                    sortOrder = sortOrder
+                ),
+                loadState = snapshot.loadState,
+                sortOrder = sortOrder
+            )
+        }
+
     val uiState: StateFlow<StoreUiState> = combine(
         storeDao.observeFavorites(),
         storeDao.observeOrderLines(),
-        catalogSortOrder,
+        sortedCatalog,
         query,
         orderMessage
-    ) { favorites, orderLines, sortOrder, currentQuery, currentOrderMessage ->
+    ) {
+            favorites,
+            orderLines,
+            catalog,
+            currentQuery,
+            currentOrderMessage ->
+
         StoreUiState(
-            products = sortCatalog(
-                products = products,
-                sortOrder = sortOrder
-            ),
+            products = catalog.products,
             profiles = originalProfiles,
-            favoriteIds = favorites.map { it.productId }.toSet(),
+            favoriteIds = favorites
+                .map { favorite -> favorite.productId }
+                .toSet(),
             query = currentQuery,
             orderItems = orderLines.map { line ->
                 OrderItem(
@@ -140,18 +134,17 @@ class StoreViewModel(
                 )
             },
             orderMessage = currentOrderMessage,
-            sortOrder = sortOrder
+            sortOrder = catalog.sortOrder,
+            catalogLoadState = catalog.loadState
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = StoreUiState(
-            products = sortCatalog(
-                products = products,
-                sortOrder = CatalogSortOrder.NAME
-            ),
+            products = emptyList(),
             profiles = originalProfiles,
-            sortOrder = CatalogSortOrder.NAME
+            sortOrder = CatalogSortOrder.NAME,
+            catalogLoadState = CatalogLoadState.Loading
         )
     )
 
@@ -178,13 +171,7 @@ class StoreViewModel(
     private var nextOrderNumber = INITIAL_ORDER_NUMBER
 
     init {
-        check(products.size == 500)
-        check(
-            products
-                .map { product -> product.id }
-                .distinct()
-                .size == 500
-        )
+        observeCatalog()
     }
 
     fun toggleFavorite(productId: String) {
@@ -203,6 +190,36 @@ class StoreViewModel(
 
     fun onQueryChange(query: String) {
         this.query.value = query
+    }
+
+    fun retryCatalog() {
+        observeCatalog()
+    }
+
+    private fun observeCatalog() {
+        catalogJob?.cancel()
+
+        catalogSnapshot.value = CatalogSnapshot(
+            loadState = CatalogLoadState.Loading
+        )
+
+        catalogJob = viewModelScope.launch {
+            productRepository
+                .observeProducts()
+                .catch {
+                    catalogSnapshot.value = CatalogSnapshot(
+                        loadState = CatalogLoadState.Error(
+                            message = "No se pudo cargar el catálogo."
+                        )
+                    )
+                }
+                .collect { products ->
+                    catalogSnapshot.value = CatalogSnapshot(
+                        products = products,
+                        loadState = CatalogLoadState.Success
+                    )
+                }
+        }
     }
 
     fun onSortOrderChange(sortOrder: CatalogSortOrder) {
@@ -528,7 +545,18 @@ fun resetOrderSubmissionState() {
     }
 
     private companion object {
-        const val CATALOG_SEED = 2026
         const val INITIAL_ORDER_NUMBER = 1
     }
 }
+
+private data class CatalogSnapshot(
+    val products: List<Product> = emptyList(),
+    val loadState: CatalogLoadState =
+        CatalogLoadState.Loading
+)
+
+private data class SortedCatalog(
+    val products: List<Product>,
+    val loadState: CatalogLoadState,
+    val sortOrder: CatalogSortOrder
+)
