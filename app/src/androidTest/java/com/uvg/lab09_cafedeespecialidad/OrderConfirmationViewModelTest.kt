@@ -15,7 +15,7 @@ class OrderConfirmationViewModelTest {
     fun invalidFormDoesNotSendOrClearOrder() {
         val orderApi = FakeOrderApi()
 
-        val viewModel = StoreViewModel(
+        val viewModel = createTestStoreViewModel(
             storeDao = FakeStoreDao(),
             preferencesDataStore = FakePreferencesDataStore(),
             orderApi = orderApi
@@ -43,7 +43,7 @@ class OrderConfirmationViewModelTest {
     fun successfulSubmissionSendsOrderAndClearsCart() {
         val orderApi = FakeOrderApi()
 
-        val viewModel = StoreViewModel(
+        val viewModel = createTestStoreViewModel(
             storeDao = FakeStoreDao(),
             preferencesDataStore = FakePreferencesDataStore(),
             orderApi = orderApi
@@ -78,7 +78,7 @@ class OrderConfirmationViewModelTest {
             shouldFailOnCreate = true
         )
 
-        val viewModel = StoreViewModel(
+        val viewModel = createTestStoreViewModel(
             storeDao = FakeStoreDao(),
             preferencesDataStore = FakePreferencesDataStore(),
             orderApi = orderApi

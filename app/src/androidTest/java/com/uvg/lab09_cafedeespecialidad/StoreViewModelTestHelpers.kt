@@ -1,14 +1,53 @@
 package com.uvg.lab09_cafedeespecialidad
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import com.uvg.lab09_cafedeespecialidad.data.local.StoreDao
+import com.uvg.lab09_cafedeespecialidad.domain.repository.ProductRepository
+import com.uvg.lab09_cafedeespecialidad.model.CatalogLoadState
 import com.uvg.lab09_cafedeespecialidad.model.StoreUiState
+import com.uvg.lab09_cafedeespecialidad.remote.OrderApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
-// uiState usa WhileSubscribed y las escrituras en Room son asíncronas.
-// Mientras se espera, la suscripción mantiene activo el combine, y la
-// función regresa cuando el ViewModel ya refleja lo que quedó guardado.
-fun StoreViewModel.awaitOrderUnits(expectedUnits: Int): StoreUiState {
+fun createTestStoreViewModel(
+    storeDao: StoreDao = FakeStoreDao(),
+    preferencesDataStore: DataStore<Preferences> =
+        FakePreferencesDataStore(),
+    productRepository: ProductRepository =
+        FakeProductRepository(),
+    orderApi: OrderApi = FakeOrderApi(),
+    waitForCatalog: Boolean = true
+): StoreViewModel {
+    val viewModel = StoreViewModel(
+        storeDao = storeDao,
+        preferencesDataStore = preferencesDataStore,
+        productRepository = productRepository,
+        orderApi = orderApi
+    )
+
+    if (waitForCatalog) {
+        viewModel.awaitCatalogLoaded()
+    }
+
+    return viewModel
+}
+
+fun StoreViewModel.awaitCatalogLoaded(): StoreUiState {
+    return runBlocking {
+        withTimeout(1_000) {
+            uiState.first { state ->
+                state.catalogLoadState ==
+                        CatalogLoadState.Success
+            }
+        }
+    }
+}
+
+fun StoreViewModel.awaitOrderUnits(
+    expectedUnits: Int
+): StoreUiState {
     return runBlocking {
         withTimeout(1_000) {
             uiState.first { state ->

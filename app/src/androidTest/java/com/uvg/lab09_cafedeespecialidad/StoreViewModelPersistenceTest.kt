@@ -14,7 +14,7 @@ class StoreViewModelPersistenceTest {
     fun toggleFavoriteInsertsAndDeletesFavorite() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = dao,
                 preferencesDataStore = FakePreferencesDataStore()
             )
@@ -57,7 +57,7 @@ class StoreViewModelPersistenceTest {
     fun zeroQuantityAndConfirmationDeleteOrderLines() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = dao,
                 preferencesDataStore = FakePreferencesDataStore(),
                 orderApi = FakeOrderApi()
@@ -121,7 +121,7 @@ class StoreViewModelPersistenceTest {
     fun rejectedOrderUpdateDoesNotReachDatabase() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = dao,
                 preferencesDataStore = FakePreferencesDataStore()
             )
