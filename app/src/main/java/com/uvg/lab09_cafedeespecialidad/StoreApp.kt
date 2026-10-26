@@ -27,9 +27,11 @@ import com.uvg.lab09_cafedeespecialidad.orders.OrderDetailScreen
 import com.uvg.lab09_cafedeespecialidad.orders.OrdersScreen
 import com.uvg.lab09_cafedeespecialidad.orders.OrdersViewModel
 import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
+import com.uvg.lab09_cafedeespecialidad.model.Product
 
 @Composable
 fun StoreApp(
+    onSeedCatalog: (List<Product>) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: StoreViewModel = viewModel()
 ) {
@@ -139,6 +141,9 @@ fun StoreApp(
                     onMyOrdersClick = {
                         ordersViewModel.loadOrders()
                         backStack.add(MyOrders)
+                    },
+                    onSeedCatalogClick = {
+                        onSeedCatalog(uiState.products)
                     },
                     gridState = catalogGridState,
                     onProductClick = { productId ->

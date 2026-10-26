@@ -30,6 +30,7 @@ import com.uvg.lab09_cafedeespecialidad.ui.components.CatalogSortSelector
 import com.uvg.lab09_cafedeespecialidad.ui.components.ProductCard
 import com.uvg.lab09_cafedeespecialidad.ui.components.ScrollToTopButton
 import com.uvg.lab09_cafedeespecialidad.ui.components.SearchBar
+import androidx.compose.material3.Button
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +45,7 @@ fun CatalogScreen(
     onSortOrderChange: (CatalogSortOrder) -> Unit,
     onOrderClick: () -> Unit,
     onMyOrdersClick: () -> Unit,
+    onSeedCatalogClick: () -> Unit,
     onProductClick: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -105,6 +107,19 @@ fun CatalogScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item(
+                span = {
+                    GridItemSpan(maxLineSpan)
+                }
+            ) {
+                Button(
+                    onClick = onSeedCatalogClick,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Text(text = "Cargar catálogo en Firestore")
+                }
+            }
+
             item(
                 span = {
                     GridItemSpan(maxLineSpan)
