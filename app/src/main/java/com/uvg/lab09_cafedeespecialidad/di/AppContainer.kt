@@ -3,7 +3,6 @@ package com.uvg.lab09_cafedeespecialidad.di
 import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.uvg.lab09_cafedeespecialidad.data.firebase.CatalogSeeder
 import com.uvg.lab09_cafedeespecialidad.data.firebase.FirebaseAuthRepository
 import com.uvg.lab09_cafedeespecialidad.data.firebase.FirestoreProductRepository
 import com.uvg.lab09_cafedeespecialidad.domain.repository.AuthRepository
@@ -26,11 +25,6 @@ class AppContainer(
 
     val productRepository: ProductRepository =
         FirestoreProductRepository(
-            firestore = firestore
-        )
-
-    val catalogSeeder: CatalogSeeder =
-        CatalogSeeder(
             firestore = firestore
         )
 }
