@@ -10,7 +10,10 @@ import com.uvg.lab09_cafedeespecialidad.remote.OrderApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-
+import com.uvg.lab09_cafedeespecialidad.data.local.DataStoreCatalogPreferencesRepository
+import com.uvg.lab09_cafedeespecialidad.data.local.RoomCartRepository
+import com.uvg.lab09_cafedeespecialidad.data.local.RoomFavoritesRepository
+import com.uvg.lab09_cafedeespecialidad.remote.RetrofitOrdersRepository
 fun createTestStoreViewModel(
     storeDao: StoreDao = FakeStoreDao(),
     preferencesDataStore: DataStore<Preferences> =
@@ -20,13 +23,22 @@ fun createTestStoreViewModel(
     orderApi: OrderApi = FakeOrderApi(),
     waitForCatalog: Boolean = true
 ): StoreViewModel {
-    val viewModel = StoreViewModel(
-        storeDao = storeDao,
-        preferencesDataStore = preferencesDataStore,
+        val viewModel = StoreViewModel(
+        favoritesRepository = RoomFavoritesRepository(
+            storeDao = storeDao
+        ),
+        cartRepository = RoomCartRepository(
+            storeDao = storeDao
+        ),
+        catalogPreferencesRepository =
+            DataStoreCatalogPreferencesRepository(
+                dataStore = preferencesDataStore
+            ),
         productRepository = productRepository,
-        orderApi = orderApi
+        ordersRepository = RetrofitOrdersRepository(
+            orderApi = orderApi
+        )
     )
-
     if (waitForCatalog) {
         viewModel.awaitCatalogLoaded()
     }

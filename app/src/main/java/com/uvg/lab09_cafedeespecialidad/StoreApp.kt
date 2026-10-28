@@ -16,7 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
@@ -31,15 +30,13 @@ import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 @Composable
 fun StoreApp(
     modifier: Modifier = Modifier,
-    viewModel: StoreViewModel = viewModel()
+    viewModel: StoreViewModel,
+    ordersViewModel: OrdersViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val orderSubmissionState by
     viewModel.orderSubmissionState.collectAsStateWithLifecycle()
-
-    val ordersViewModel: OrdersViewModel =
-        androidx.lifecycle.viewmodel.compose.viewModel()
 
     val ordersUiState by
     ordersViewModel.ordersUiState.collectAsStateWithLifecycle()

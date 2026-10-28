@@ -1,26 +1,28 @@
 package com.uvg.lab09_cafedeespecialidad
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.uvg.lab09_cafedeespecialidad.catalog.sortCatalog
-import com.uvg.lab09_cafedeespecialidad.data.local.StoreDao
-import com.uvg.lab09_cafedeespecialidad.data.local.StorePreferencesKeys
-import com.uvg.lab09_cafedeespecialidad.data.local.entity.FavoriteEntity
-import com.uvg.lab09_cafedeespecialidad.data.local.entity.OrderLineEntity
+import com.uvg.lab09_cafedeespecialidad.domain.repository.CartRepository
+import com.uvg.lab09_cafedeespecialidad.domain.repository.CatalogPreferencesRepository
+import com.uvg.lab09_cafedeespecialidad.domain.repository.FavoritesRepository
+import com.uvg.lab09_cafedeespecialidad.domain.repository.OrderError
+import com.uvg.lab09_cafedeespecialidad.domain.repository.OrderResult
+import com.uvg.lab09_cafedeespecialidad.domain.repository.OrdersRepository
+import com.uvg.lab09_cafedeespecialidad.domain.repository.ProductRepository
 import com.uvg.lab09_cafedeespecialidad.model.BillingType
+import com.uvg.lab09_cafedeespecialidad.model.CatalogLoadState
 import com.uvg.lab09_cafedeespecialidad.model.CatalogSortOrder
 import com.uvg.lab09_cafedeespecialidad.model.CheckoutUiState
-import com.uvg.lab09_cafedeespecialidad.model.OrderItem
 import com.uvg.lab09_cafedeespecialidad.model.OrderReceipt
+import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
 import com.uvg.lab09_cafedeespecialidad.model.Product
 import com.uvg.lab09_cafedeespecialidad.model.Profile
 import com.uvg.lab09_cafedeespecialidad.model.StoreUiState
 import com.uvg.lab09_cafedeespecialidad.order.OrderUpdateResult
 import com.uvg.lab09_cafedeespecialidad.order.addToOrder as addToOrderRule
+import com.uvg.lab09_cafedeespecialidad.order.buildNewOrder
 import com.uvg.lab09_cafedeespecialidad.order.calculateLineSubtotal
 import com.uvg.lab09_cafedeespecialidad.order.calculateOrderTotal
 import com.uvg.lab09_cafedeespecialidad.order.decreaseOrderItem as decreaseOrderItemRule
@@ -29,34 +31,25 @@ import com.uvg.lab09_cafedeespecialidad.validation.validateFullName
 import com.uvg.lab09_cafedeespecialidad.validation.validateNit
 import com.uvg.lab09_cafedeespecialidad.validation.validatePhone
 import java.util.Locale
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
-import com.uvg.lab09_cafedeespecialidad.remote.OrderApi
-import com.uvg.lab09_cafedeespecialidad.remote.OrderApiClient
-import com.uvg.lab09_cafedeespecialidad.remote.buildNewOrderDto
-import java.io.IOException
-import retrofit2.HttpException
-import kotlinx.serialization.SerializationException
-import com.uvg.lab09_cafedeespecialidad.domain.repository.ProductRepository
-import com.uvg.lab09_cafedeespecialidad.model.CatalogLoadState
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
 
 class StoreViewModel(
-    private val storeDao: StoreDao,
-    private val preferencesDataStore: DataStore<Preferences>,
+    private val favoritesRepository: FavoritesRepository,
+    private val cartRepository: CartRepository,
+    private val catalogPreferencesRepository: CatalogPreferencesRepository,
     private val productRepository: ProductRepository,
-    private val orderApi: OrderApi = OrderApiClient.orderApi
+    private val ordersRepository: OrdersRepository
 ) : ViewModel() {
 
     private val originalProfiles = listOf(
@@ -85,12 +78,7 @@ class StoreViewModel(
     private val query = MutableStateFlow("")
 
     private val catalogSortOrder: Flow<CatalogSortOrder> =
-        preferencesDataStore.data.map { preferences ->
-            CatalogSortOrder.fromStorageValue(
-                preferences[StorePreferencesKeys.CATALOG_SORT_ORDER]
-                    ?: CatalogSortOrder.NAME.storageValue
-            )
-        }
+        catalogPreferencesRepository.observeSortOrder()
 
     private val sortedCatalog: Flow<SortedCatalog> =
         combine(
@@ -108,31 +96,18 @@ class StoreViewModel(
         }
 
     val uiState: StateFlow<StoreUiState> = combine(
-        storeDao.observeFavorites(),
-        storeDao.observeOrderLines(),
+        favoritesRepository.observeFavoriteIds(),
+        cartRepository.observeItems(),
         sortedCatalog,
         query,
         orderMessage
-    ) {
-            favorites,
-            orderLines,
-            catalog,
-            currentQuery,
-            currentOrderMessage ->
-
+    ) { favorites, orderItems, catalog, currentQuery, currentOrderMessage ->
         StoreUiState(
             products = catalog.products,
             profiles = originalProfiles,
-            favoriteIds = favorites
-                .map { favorite -> favorite.productId }
-                .toSet(),
+            favoriteIds = favorites,
             query = currentQuery,
-            orderItems = orderLines.map { line ->
-                OrderItem(
-                    productId = line.productId,
-                    quantity = line.quantity
-                )
-            },
+            orderItems = orderItems,
             orderMessage = currentOrderMessage,
             sortOrder = catalog.sortOrder,
             catalogLoadState = catalog.loadState
@@ -148,25 +123,25 @@ class StoreViewModel(
         )
     )
 
-    private val _checkoutUiState = MutableStateFlow(
-        CheckoutUiState()
-    )
+    private val _checkoutUiState =
+        MutableStateFlow(CheckoutUiState())
 
     val checkoutUiState: StateFlow<CheckoutUiState> =
         _checkoutUiState.asStateFlow()
 
     private val _orderReceipt =
         MutableStateFlow<OrderReceipt?>(null)
-    private val _orderSubmissionState =
-    MutableStateFlow<OrderSubmissionState>(
-        OrderSubmissionState.Idle
-    )
-
-    val orderSubmissionState: StateFlow<OrderSubmissionState> =
-    _orderSubmissionState.asStateFlow()
 
     val orderReceipt: StateFlow<OrderReceipt?> =
         _orderReceipt.asStateFlow()
+
+    private val _orderSubmissionState =
+        MutableStateFlow<OrderSubmissionState>(
+            OrderSubmissionState.Idle
+        )
+
+    val orderSubmissionState: StateFlow<OrderSubmissionState> =
+        _orderSubmissionState.asStateFlow()
 
     private var nextOrderNumber = INITIAL_ORDER_NUMBER
 
@@ -178,13 +153,10 @@ class StoreViewModel(
         val isFavorite = productId in uiState.value.favoriteIds
 
         viewModelScope.launch {
-            if (isFavorite) {
-                storeDao.deleteFavorite(productId)
-            } else {
-                storeDao.insertFavorite(
-                    FavoriteEntity(productId = productId)
-                )
-            }
+            favoritesRepository.setFavorite(
+                productId = productId,
+                isFavorite = !isFavorite
+            )
         }
     }
 
@@ -224,10 +196,7 @@ class StoreViewModel(
 
     fun onSortOrderChange(sortOrder: CatalogSortOrder) {
         viewModelScope.launch {
-            preferencesDataStore.edit { preferences ->
-                preferences[StorePreferencesKeys.CATALOG_SORT_ORDER] =
-                    sortOrder.storageValue
-            }
+            catalogPreferencesRepository.setSortOrder(sortOrder)
         }
     }
 
@@ -260,12 +229,7 @@ class StoreViewModel(
                 }
 
                 viewModelScope.launch {
-                    storeDao.upsertOrderLine(
-                        OrderLineEntity(
-                            productId = updatedLine.productId,
-                            quantity = updatedLine.quantity
-                        )
-                    )
+                    cartRepository.saveItem(updatedLine)
                 }
             }
 
@@ -289,14 +253,9 @@ class StoreViewModel(
             }
 
             if (updatedLine == null) {
-                storeDao.deleteOrderLine(productId)
+                cartRepository.removeItem(productId)
             } else {
-                storeDao.upsertOrderLine(
-                    OrderLineEntity(
-                        productId = updatedLine.productId,
-                        quantity = updatedLine.quantity
-                    )
-                )
+                cartRepository.saveItem(updatedLine)
             }
         }
     }
@@ -305,19 +264,19 @@ class StoreViewModel(
         orderMessage.value = null
 
         viewModelScope.launch {
-            storeDao.deleteOrderLine(productId)
+            cartRepository.removeItem(productId)
         }
     }
 
     fun orderSubtotal(productId: String): Double {
         val current = uiState.value
 
-        val product = current.products.firstOrNull { item ->
-            item.id == productId
+        val product = current.products.firstOrNull {
+            it.id == productId
         } ?: return 0.0
 
-        val orderItem = current.orderItems.firstOrNull { item ->
-            item.productId == productId
+        val orderItem = current.orderItems.firstOrNull {
+            it.productId == productId
         } ?: return 0.0
 
         return calculateLineSubtotal(
@@ -336,8 +295,8 @@ class StoreViewModel(
     }
 
     fun orderUnits(): Int {
-        return uiState.value.orderItems.sumOf { orderItem ->
-            orderItem.quantity
+        return uiState.value.orderItems.sumOf {
+            it.quantity
         }
     }
 
@@ -418,93 +377,97 @@ class StoreViewModel(
         }
     }
 
-fun confirmOrder() {
-    if (_orderSubmissionState.value is OrderSubmissionState.Sending) {
-        return
-    }
+    fun confirmOrder() {
+        if (_orderSubmissionState.value is OrderSubmissionState.Sending) {
+            return
+        }
 
-    val validatedCheckout =
-        _checkoutUiState.value.withRecalculatedValidation()
+        val checkout =
+            _checkoutUiState.value.withRecalculatedValidation()
 
-    _checkoutUiState.value = validatedCheckout
+        _checkoutUiState.value = checkout
 
-    val currentStore = uiState.value
-    val units = currentStore.orderItems.sumOf { orderItem ->
-        orderItem.quantity
-    }
+        val currentStore = uiState.value
+        val units = currentStore.orderItems.sumOf {
+            it.quantity
+        }
 
-    if (!validatedCheckout.isFormValid || units <= 0) {
-        return
-    }
+        if (!checkout.isFormValid || units <= 0) {
+            return
+        }
 
-    val createdAt = System.currentTimeMillis()
+        val newOrder = buildNewOrder(
+            products = currentStore.products,
+            orderItems = currentStore.orderItems,
+            billingType = checkout.billingType,
+            paymentMethod = checkout.paymentMethod,
+            createdAt = System.currentTimeMillis()
+        )
 
-    val remoteOrder = buildNewOrderDto(
-        products = currentStore.products,
-        orderItems = currentStore.orderItems,
-        checkout = validatedCheckout,
-        createdAt = createdAt
-    )
+        _orderSubmissionState.value = OrderSubmissionState.Sending
 
-    _orderSubmissionState.value = OrderSubmissionState.Sending
+        viewModelScope.launch {
+            when (
+                val result = ordersRepository.createOrder(newOrder)
+            ) {
+                is OrderResult.Success -> {
+                    _orderReceipt.value = OrderReceipt(
+                        folio = formatFolio(nextOrderNumber),
+                        serverOrderId = result.value.id,
+                        customerName = checkout.fullName.trim(),
+                        phone = checkout.phone.trim(),
+                        billingType = checkout.billingType,
+                        nit = if (checkout.billingType == BillingType.NIT) {
+                            checkout.nit.trim()
+                        } else {
+                            null
+                        },
+                        businessName = if (
+                            checkout.billingType == BillingType.NIT
+                        ) {
+                            checkout.businessName.trim()
+                        } else {
+                            null
+                        },
+                        paymentMethod = checkout.paymentMethod,
+                        total = calculateOrderTotal(
+                            products = currentStore.products,
+                            orderItems = currentStore.orderItems
+                        )
+                    )
 
-    viewModelScope.launch {
-        try {
-            val createdOrder = orderApi.createOrder(remoteOrder)
+                    cartRepository.clear()
+                    _checkoutUiState.value = CheckoutUiState()
+                    nextOrderNumber += 1
 
-            val total = calculateOrderTotal(
-                products = currentStore.products,
-                orderItems = currentStore.orderItems
-            )
+                    _orderSubmissionState.value =
+                        OrderSubmissionState.Success
+                }
 
-            _orderReceipt.value = OrderReceipt(
-                folio = formatFolio(nextOrderNumber),
-                serverOrderId = createdOrder.id,
-                customerName = validatedCheckout.fullName.trim(),
-                phone = validatedCheckout.phone.trim(),
-                billingType = validatedCheckout.billingType,
-                nit = if (validatedCheckout.billingType == BillingType.NIT) {
-                    validatedCheckout.nit.trim()
-                } else {
-                    null
-                },
-                businessName = if (
-                    validatedCheckout.billingType == BillingType.NIT
-                ) {
-                    validatedCheckout.businessName.trim()
-                } else {
-                    null
-                },
-                paymentMethod = validatedCheckout.paymentMethod,
-                total = total
-            )
+                is OrderResult.Failure -> {
+                    _orderSubmissionState.value =
+                        OrderSubmissionState.Error(
+                            message = when (result.error) {
+                                OrderError.NETWORK ->
+                                    "No se pudo conectar con el servidor. Intenta de nuevo."
 
-            storeDao.clearOrderLines()
-            _checkoutUiState.value = CheckoutUiState()
-            nextOrderNumber += 1
+                                OrderError.INVALID_DATA ->
+                                    "La respuesta del servidor no tiene el formato esperado."
 
-            _orderSubmissionState.value = OrderSubmissionState.Success
-        } catch (_: IOException) {
-            _orderSubmissionState.value = OrderSubmissionState.Error(
-                message = "No se pudo conectar con el servidor. Intenta de nuevo."
-            )
-        } catch (_: HttpException) {
-            _orderSubmissionState.value = OrderSubmissionState.Error(
-                message = "El servidor no pudo guardar el pedido. Intenta de nuevo."
-            )
-        } catch (_: SerializationException){
-            _orderSubmissionState.value = OrderSubmissionState.Error(
-                message = "La respues del servidor no tiene el formato esperado"
-            )
+                                else ->
+                                    "El servidor no pudo guardar el pedido. Intenta de nuevo."
+                            }
+                        )
+                }
+            }
         }
     }
-}
 
-fun resetOrderSubmissionState() {
-    _orderSubmissionState.value = OrderSubmissionState.Idle
-}
-    private fun CheckoutUiState.withRecalculatedValidation():
-            CheckoutUiState {
+    fun resetOrderSubmissionState() {
+        _orderSubmissionState.value = OrderSubmissionState.Idle
+    }
+
+    private fun CheckoutUiState.withRecalculatedValidation(): CheckoutUiState {
         val updatedFullNameError = validateFullName(fullName)
         val updatedPhoneError = validatePhone(phone)
 
@@ -523,9 +486,9 @@ fun resetOrderSubmissionState() {
 
         val updatedIsFormValid =
             updatedFullNameError == null &&
-                    updatedPhoneError == null &&
-                    updatedNitError == null &&
-                    updatedBusinessNameError == null
+                updatedPhoneError == null &&
+                updatedNitError == null &&
+                updatedBusinessNameError == null
 
         return copy(
             fullNameError = updatedFullNameError,
@@ -551,8 +514,7 @@ fun resetOrderSubmissionState() {
 
 private data class CatalogSnapshot(
     val products: List<Product> = emptyList(),
-    val loadState: CatalogLoadState =
-        CatalogLoadState.Loading
+    val loadState: CatalogLoadState = CatalogLoadState.Loading
 )
 
 private data class SortedCatalog(

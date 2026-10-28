@@ -25,7 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.uvg.lab09_cafedeespecialidad.remote.OrderLineDto
+import com.uvg.lab09_cafedeespecialidad.model.OrderLine
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -175,7 +175,7 @@ fun OrderDetailScreen(
 
 @Composable
 private fun OrderLineCard(
-    line: OrderLineDto,
+    line: OrderLine,
     modifier: Modifier = Modifier
 ) {
     Card(
