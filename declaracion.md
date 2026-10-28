@@ -82,4 +82,4 @@ a pantallas, ViewModels, estados de UI, StoreApp y MainActivity.
 Resultado: cero imports de androidx.room3, androidx.datastore,
 retrofit2 y com.google.firebase en los archivos revisados.
 
-![Búsqueda de imports en presentación](captura-imports.png)
+
