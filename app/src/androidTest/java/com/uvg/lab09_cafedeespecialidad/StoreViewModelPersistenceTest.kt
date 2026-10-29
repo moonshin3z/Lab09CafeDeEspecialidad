@@ -134,10 +134,11 @@ class StoreViewModelPersistenceTest {
 
             viewModel.addToOrder("cafe-geisha")
 
+            // Las 3 unidades ya están reservadas: Firestore quedó en 0.
             val rejectedState = withTimeout(1_000) {
                 viewModel.uiState.first { state ->
                     state.orderMessage ==
-                        "No hay existencias suficientes. Máximo disponible: 3."
+                        "Agotado: no quedan existencias de este producto."
                 }
             }
             val savedLines = dao.observeOrderLines().first()

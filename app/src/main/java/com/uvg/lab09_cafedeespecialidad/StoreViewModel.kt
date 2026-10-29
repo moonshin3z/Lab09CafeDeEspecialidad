@@ -9,29 +9,36 @@ import com.uvg.lab09_cafedeespecialidad.domain.repository.FavoritesRepository
 import com.uvg.lab09_cafedeespecialidad.domain.repository.OrderError
 import com.uvg.lab09_cafedeespecialidad.domain.repository.OrderResult
 import com.uvg.lab09_cafedeespecialidad.domain.repository.OrdersRepository
+import com.uvg.lab09_cafedeespecialidad.domain.repository.OutOfStockException
 import com.uvg.lab09_cafedeespecialidad.domain.repository.ProductRepository
 import com.uvg.lab09_cafedeespecialidad.model.BillingType
 import com.uvg.lab09_cafedeespecialidad.model.CatalogLoadState
 import com.uvg.lab09_cafedeespecialidad.model.CatalogSortOrder
 import com.uvg.lab09_cafedeespecialidad.model.CheckoutUiState
+import com.uvg.lab09_cafedeespecialidad.model.ConcurrencyTestState
+import com.uvg.lab09_cafedeespecialidad.model.OrderItem
 import com.uvg.lab09_cafedeespecialidad.model.OrderReceipt
 import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
 import com.uvg.lab09_cafedeespecialidad.model.Product
 import com.uvg.lab09_cafedeespecialidad.model.Profile
 import com.uvg.lab09_cafedeespecialidad.model.StoreUiState
+import com.uvg.lab09_cafedeespecialidad.order.OUT_OF_STOCK_MESSAGE
 import com.uvg.lab09_cafedeespecialidad.order.OrderUpdateResult
 import com.uvg.lab09_cafedeespecialidad.order.addToOrder as addToOrderRule
 import com.uvg.lab09_cafedeespecialidad.order.buildNewOrder
 import com.uvg.lab09_cafedeespecialidad.order.calculateLineSubtotal
 import com.uvg.lab09_cafedeespecialidad.order.calculateOrderTotal
 import com.uvg.lab09_cafedeespecialidad.order.decreaseOrderItem as decreaseOrderItemRule
+import com.uvg.lab09_cafedeespecialidad.order.removeOrderItem as removeOrderItemRule
 import com.uvg.lab09_cafedeespecialidad.validation.validateBusinessName
 import com.uvg.lab09_cafedeespecialidad.validation.validateFullName
 import com.uvg.lab09_cafedeespecialidad.validation.validateNit
 import com.uvg.lab09_cafedeespecialidad.validation.validatePhone
 import java.util.Locale
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,9 +47,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class StoreViewModel(
     private val favoritesRepository: FavoritesRepository,
@@ -76,6 +86,24 @@ class StoreViewModel(
 
     private val orderMessage = MutableStateFlow<String?>(null)
     private val query = MutableStateFlow("")
+    private val stockOperations = MutableStateFlow(StockOperations())
+
+    // Las reservas y devoluciones del pedido se hacen de una en una: así cada
+    // una calcula la cantidad con el pedido que dejó la anterior.
+    private val stockOperationMutex = Mutex()
+
+    private val interactionState: Flow<InteractionState> =
+        combine(
+            query,
+            orderMessage,
+            stockOperations
+        ) { currentQuery, currentOrderMessage, operations ->
+            InteractionState(
+                query = currentQuery,
+                orderMessage = currentOrderMessage,
+                stockOperations = operations
+            )
+        }
 
     private val catalogSortOrder: Flow<CatalogSortOrder> =
         catalogPreferencesRepository.observeSortOrder()
@@ -99,18 +127,21 @@ class StoreViewModel(
         favoritesRepository.observeFavoriteIds(),
         cartRepository.observeItems(),
         sortedCatalog,
-        query,
-        orderMessage
-    ) { favorites, orderItems, catalog, currentQuery, currentOrderMessage ->
+        interactionState
+    ) { favorites, orderItems, catalog, interaction ->
         StoreUiState(
             products = catalog.products,
             profiles = originalProfiles,
             favoriteIds = favorites,
-            query = currentQuery,
+            query = interaction.query,
             orderItems = orderItems,
-            orderMessage = currentOrderMessage,
+            orderMessage = interaction.orderMessage,
             sortOrder = catalog.sortOrder,
-            catalogLoadState = catalog.loadState
+            catalogLoadState = catalog.loadState,
+            reservingProductIds =
+                interaction.stockOperations.reservingProductIds.toSet(),
+            releasingProductIds =
+                interaction.stockOperations.releasingProductIds.toSet()
         )
     }.stateIn(
         scope = viewModelScope,
@@ -142,6 +173,14 @@ class StoreViewModel(
 
     val orderSubmissionState: StateFlow<OrderSubmissionState> =
         _orderSubmissionState.asStateFlow()
+
+    private val _concurrencyTestState =
+        MutableStateFlow<ConcurrencyTestState>(
+            ConcurrencyTestState.Idle
+        )
+
+    val concurrencyTestState: StateFlow<ConcurrencyTestState> =
+        _concurrencyTestState.asStateFlow()
 
     private var nextOrderNumber = INITIAL_ORDER_NUMBER
 
@@ -200,6 +239,10 @@ class StoreViewModel(
         }
     }
 
+    /**
+     * Agregar al pedido reserva la unidad en Firestore. El pedido en curso
+     * solo cambia si la reserva se confirmó; si falla, queda igual.
+     */
     fun addToOrder(
         productId: String,
         increment: Int = 1
@@ -215,22 +258,10 @@ class StoreViewModel(
             )
         ) {
             is OrderUpdateResult.Success -> {
-                val unitLabel = if (increment == 1) {
-                    "unidad"
-                } else {
-                    "unidades"
-                }
-
-                orderMessage.value =
-                    "Se agregó $increment $unitLabel al pedido."
-
-                val updatedLine = result.orderItems.first {
-                    it.productId == productId
-                }
-
-                viewModelScope.launch {
-                    cartRepository.saveItem(updatedLine)
-                }
+                reserveAndAddToOrder(
+                    productId = productId,
+                    increment = increment
+                )
             }
 
             is OrderUpdateResult.Rejected -> {
@@ -239,32 +270,204 @@ class StoreViewModel(
         }
     }
 
+    /** Quitar una unidad la devuelve a Firestore antes de cambiar el pedido. */
     fun decreaseOrderItem(productId: String) {
-        val updatedItems = decreaseOrderItemRule(
-            orderItems = uiState.value.orderItems,
-            productId = productId
+        releaseAndUpdateOrder(productId = productId) { orderItems ->
+            decreaseOrderItemRule(
+                orderItems = orderItems,
+                productId = productId
+            )
+        }
+    }
+
+    /** Eliminar la línea devuelve todas sus unidades a Firestore. */
+    fun removeOrderItem(productId: String) {
+        releaseAndUpdateOrder(productId = productId) { orderItems ->
+            removeOrderItemRule(
+                orderItems = orderItems,
+                productId = productId
+            )
+        }
+    }
+
+    /**
+     * Herramienta de prueba: lanza varias reservas a la vez sin tocar el
+     * pedido en curso. Con un mecanismo seguro, los éxitos nunca superan
+     * las existencias que había.
+     */
+    fun onConcurrencyTest(
+        productId: String,
+        attempts: Int = CONCURRENCY_TEST_ATTEMPTS
+    ) {
+        if (_concurrencyTestState.value is ConcurrencyTestState.Running) {
+            return
+        }
+
+        _concurrencyTestState.value = ConcurrencyTestState.Running(
+            productId = productId,
+            attempts = attempts
         )
 
-        orderMessage.value = null
-
         viewModelScope.launch {
-            val updatedLine = updatedItems.firstOrNull {
-                it.productId == productId
+            val results = List(attempts) {
+                async {
+                    productRepository.reserveUnits(productId)
+                }
+            }.awaitAll()
+
+            val successes = results.count { result ->
+                result.isSuccess
             }
 
-            if (updatedLine == null) {
-                cartRepository.removeItem(productId)
-            } else {
-                cartRepository.saveItem(updatedLine)
+            _concurrencyTestState.value = ConcurrencyTestState.Finished(
+                productId = productId,
+                successes = successes,
+                rejections = attempts - successes
+            )
+        }
+    }
+
+    private fun reserveAndAddToOrder(
+        productId: String,
+        increment: Int
+    ) {
+        orderMessage.value = null
+        stockOperations.update { operations ->
+            operations.copy(
+                reservingProductIds =
+                    operations.reservingProductIds + productId
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                stockOperationMutex.withLock {
+                    reserveAndSaveLine(
+                        productId = productId,
+                        increment = increment
+                    )
+                }
+            } finally {
+                stockOperations.update { operations ->
+                    operations.copy(
+                        reservingProductIds =
+                            operations.reservingProductIds - productId
+                    )
+                }
             }
         }
     }
 
-    fun removeOrderItem(productId: String) {
+    private suspend fun reserveAndSaveLine(
+        productId: String,
+        increment: Int
+    ) {
+        val reservation = productRepository.reserveUnits(
+            productId = productId,
+            quantity = increment
+        )
+
+        if (reservation.isFailure) {
+            orderMessage.value = reservationErrorMessage(
+                error = reservation.exceptionOrNull()
+            )
+            return
+        }
+
+        // Se lee el pedido guardado y no uiState, que puede no reflejar
+        // todavía la última reserva.
+        val currentQuantity = cartRepository
+            .observeItems()
+            .first()
+            .quantityOf(productId)
+
+        cartRepository.saveItem(
+            OrderItem(
+                productId = productId,
+                quantity = currentQuantity + increment
+            )
+        )
+
+        val unitLabel = if (increment == 1) {
+            "unidad"
+        } else {
+            "unidades"
+        }
+
+        orderMessage.value = "Se agregó $increment $unitLabel al pedido."
+    }
+
+    private fun releaseAndUpdateOrder(
+        productId: String,
+        updateItems: (List<OrderItem>) -> List<OrderItem>
+    ) {
         orderMessage.value = null
+        stockOperations.update { operations ->
+            operations.copy(
+                releasingProductIds =
+                    operations.releasingProductIds + productId
+            )
+        }
 
         viewModelScope.launch {
+            try {
+                stockOperationMutex.withLock {
+                    releaseAndSaveLine(
+                        productId = productId,
+                        updateItems = updateItems
+                    )
+                }
+            } finally {
+                stockOperations.update { operations ->
+                    operations.copy(
+                        releasingProductIds =
+                            operations.releasingProductIds - productId
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun releaseAndSaveLine(
+        productId: String,
+        updateItems: (List<OrderItem>) -> List<OrderItem>
+    ) {
+        val currentItems = cartRepository.observeItems().first()
+        val updatedItems = updateItems(currentItems)
+        val releasedUnits = currentItems.quantityOf(productId) -
+            updatedItems.quantityOf(productId)
+
+        if (releasedUnits <= 0) {
+            return
+        }
+
+        val release = productRepository.releaseUnits(
+            productId = productId,
+            quantity = releasedUnits
+        )
+
+        if (release.isFailure) {
+            orderMessage.value =
+                "No se pudieron devolver las unidades. Revisa tu conexión e intenta de nuevo."
+            return
+        }
+
+        val updatedLine = updatedItems.firstOrNull { item ->
+            item.productId == productId
+        }
+
+        if (updatedLine == null) {
             cartRepository.removeItem(productId)
+        } else {
+            cartRepository.saveItem(updatedLine)
+        }
+    }
+
+    private fun reservationErrorMessage(error: Throwable?): String {
+        return if (error is OutOfStockException) {
+            OUT_OF_STOCK_MESSAGE
+        } else {
+            "No se pudo reservar la unidad. Revisa tu conexión e intenta de nuevo."
         }
     }
 
@@ -509,8 +712,28 @@ class StoreViewModel(
 
     private companion object {
         const val INITIAL_ORDER_NUMBER = 1
+        const val CONCURRENCY_TEST_ATTEMPTS = 20
     }
 }
+
+private fun List<OrderItem>.quantityOf(productId: String): Int {
+    return firstOrNull { item ->
+        item.productId == productId
+    }?.quantity ?: 0
+}
+
+// Listas y no conjuntos: si se tocan dos veces, el aviso sigue hasta que
+// terminen las dos operaciones.
+private data class StockOperations(
+    val reservingProductIds: List<String> = emptyList(),
+    val releasingProductIds: List<String> = emptyList()
+)
+
+private data class InteractionState(
+    val query: String,
+    val orderMessage: String?,
+    val stockOperations: StockOperations
+)
 
 private data class CatalogSnapshot(
     val products: List<Product> = emptyList(),

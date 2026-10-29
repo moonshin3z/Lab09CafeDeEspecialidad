@@ -38,6 +38,9 @@ fun StoreApp(
     val orderSubmissionState by
     viewModel.orderSubmissionState.collectAsStateWithLifecycle()
 
+    val concurrencyTestState by
+    viewModel.concurrencyTestState.collectAsStateWithLifecycle()
+
     val ordersUiState by
     ordersViewModel.ordersUiState.collectAsStateWithLifecycle()
 
@@ -204,11 +207,16 @@ fun StoreApp(
                         isFavorite = product.id in uiState.favoriteIds,
                         orderQuantity = orderQuantity,
                         orderMessage = uiState.orderMessage,
+                        isReserving = product.id in uiState.reservingProductIds,
+                        concurrencyTestState = concurrencyTestState,
                         onToggleFavorite = {
                             viewModel.toggleFavorite(product.id)
                         },
                         onAddToOrder = {
                             viewModel.addToOrder(product.id)
+                        },
+                        onConcurrencyTest = {
+                            viewModel.onConcurrencyTest(product.id)
                         },
                         onProfileClick = {
                             backStack.add(
@@ -233,6 +241,8 @@ fun StoreApp(
                     lineSubtotals = lineSubtotals,
                     orderTotal = viewModel.orderTotal(),
                     orderMessage = uiState.orderMessage,
+                    reservingProductIds = uiState.reservingProductIds,
+                    releasingProductIds = uiState.releasingProductIds,
                     onIncrease = { productId ->
                         viewModel.addToOrder(productId)
                     },

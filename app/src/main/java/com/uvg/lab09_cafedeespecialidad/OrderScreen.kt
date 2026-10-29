@@ -39,6 +39,8 @@ fun OrderScreen(
     lineSubtotals: Map<String, Double>,
     orderTotal: Double,
     orderMessage: String?,
+    reservingProductIds: Set<String>,
+    releasingProductIds: Set<String>,
     onIncrease: (String) -> Unit,
     onDecrease: (String) -> Unit,
     onRemove: (String) -> Unit,
@@ -56,6 +58,10 @@ fun OrderScreen(
         orderItem.quantity
     }
 
+    // No se confirma mientras una reserva o devolución espera a Firestore.
+    val hasPendingStockUpdates = reservingProductIds.isNotEmpty() ||
+        releasingProductIds.isNotEmpty()
+
     Scaffold(
         modifier = modifier,
         bottomBar = {
@@ -67,7 +73,7 @@ fun OrderScreen(
             ) {
                 Button(
                     onClick = onContinueToCheckout,
-                    enabled = orderUnits > 0,
+                    enabled = orderUnits > 0 && !hasPendingStockUpdates,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Continuar al checkout")
@@ -147,6 +153,11 @@ fun OrderScreen(
                             product = product,
                             orderItem = orderItem,
                             subtotal = lineSubtotals[orderItem.productId] ?: 0.0,
+                            pendingMessage = when (orderItem.productId) {
+                                in reservingProductIds -> "Reservando unidad…"
+                                in releasingProductIds -> "Devolviendo unidades a la tienda…"
+                                else -> null
+                            },
                             onIncrease = {
                                 onIncrease(orderItem.productId)
                             },
@@ -191,10 +202,13 @@ private fun OrderLine(
     product: Product,
     orderItem: OrderItem,
     subtotal: Double,
+    pendingMessage: String?,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val isUpdating = pendingMessage != null
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -214,6 +228,13 @@ private fun OrderLine(
             style = MaterialTheme.typography.bodyMedium
         )
 
+        if (pendingMessage != null) {
+            Text(
+                text = pendingMessage,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -222,7 +243,10 @@ private fun OrderLine(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onDecrease) {
+                IconButton(
+                    onClick = onDecrease,
+                    enabled = !isUpdating
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Remove,
                         contentDescription = "Disminuir cantidad"
@@ -234,7 +258,10 @@ private fun OrderLine(
                     style = MaterialTheme.typography.titleMedium
                 )
 
-                IconButton(onClick = onIncrease) {
+                IconButton(
+                    onClick = onIncrease,
+                    enabled = !isUpdating
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = "Aumentar cantidad"
@@ -242,7 +269,10 @@ private fun OrderLine(
                 }
             }
 
-            IconButton(onClick = onRemove) {
+            IconButton(
+                onClick = onRemove,
+                enabled = !isUpdating
+            ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = "Eliminar producto del pedido"

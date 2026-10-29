@@ -9,5 +9,8 @@ data class StoreUiState(
     val orderMessage: String? = null,
     val sortOrder: CatalogSortOrder = CatalogSortOrder.NAME,
     val catalogLoadState: CatalogLoadState =
-        CatalogLoadState.Loading
+        CatalogLoadState.Loading,
+    // Productos con una reserva o una devolución esperando a Firestore.
+    val reservingProductIds: Set<String> = emptySet(),
+    val releasingProductIds: Set<String> = emptySet()
 )

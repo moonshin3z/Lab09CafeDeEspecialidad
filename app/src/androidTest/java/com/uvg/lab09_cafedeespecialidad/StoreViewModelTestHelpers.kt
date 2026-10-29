@@ -57,6 +57,8 @@ fun StoreViewModel.awaitCatalogLoaded(): StoreUiState {
     }
 }
 
+// También espera a que no quede una reserva o devolución en curso, porque
+// mientras tanto el ViewModel ignora otra operación sobre el mismo producto.
 fun StoreViewModel.awaitOrderUnits(
     expectedUnits: Int
 ): StoreUiState {
@@ -65,7 +67,9 @@ fun StoreViewModel.awaitOrderUnits(
             uiState.first { state ->
                 state.orderItems.sumOf { item ->
                     item.quantity
-                } == expectedUnits
+                } == expectedUnits &&
+                    state.reservingProductIds.isEmpty() &&
+                    state.releasingProductIds.isEmpty()
             }
         }
     }
