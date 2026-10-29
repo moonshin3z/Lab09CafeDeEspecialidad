@@ -82,4 +82,28 @@ a pantallas, ViewModels, estados de UI, StoreApp y MainActivity.
 Resultado: cero imports de androidx.room3, androidx.datastore,
 retrofit2 y com.google.firebase en los archivos revisados.
 
+### Reserva de existencias y reglas de seguridad
 
+Agregar al pedido reserva la unidad en Firestore con `runTransaction`:
+la transacción lee las existencias en el servidor y solo las descuenta
+si alcanzan. Si otro cliente cambia el producto entre la lectura y la
+escritura, Firestore vuelve a ejecutar la transacción con el valor nuevo.
+Disminuir una cantidad o eliminar una línea devuelve las unidades con
+otra transacción, y confirmar el pedido no cambia las existencias.
+
+El detalle del producto conserva la acción «Prueba de concurrencia»,
+que envía 20 reservas a la vez sin tocar el pedido en curso.
+
+Las reglas definitivas están en `firestore.rules`: solo un usuario con
+sesión lee y modifica productos, nadie los crea ni los elimina, y una
+actualización solo puede cambiar `stock` a un entero mayor o igual que cero.
+
+Se utilizó Claude (Anthropic) como apoyo para revisar la documentación
+de transacciones y reglas, implementar la reserva y la prueba de
+concurrencia, y redactar las pruebas automatizadas. Las pruebas en el
+emulador, en la consola de Firebase y en el Rules Playground las realizó
+el equipo.
+
+Fuentes consultadas: documentación oficial de Firebase sobre
+transacciones, actualizaciones en tiempo real, reglas de seguridad,
+control de acceso por campo y Rules Playground.
