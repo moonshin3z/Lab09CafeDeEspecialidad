@@ -1,10 +1,15 @@
 package com.uvg.lab09_cafedeespecialidad
 
+import com.uvg.lab09_cafedeespecialidad.domain.repository.OutOfStockException
 import com.uvg.lab09_cafedeespecialidad.domain.repository.ProductRepository
 import com.uvg.lab09_cafedeespecialidad.model.Product
+import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class FakeProductRepository(
     initialProducts: List<Product> = testProducts(),
@@ -20,6 +25,16 @@ class FakeProductRepository(
     var observationCount: Int = 0
         private set
 
+    // Simula una red caída: las reservas y devoluciones fallan.
+    var isOffline: Boolean = false
+
+    // Si no es null, las reservas esperan a que la prueba lo complete.
+    var reservationGate: CompletableDeferred<Unit>? = null
+
+    // Hace lo mismo que la transacción: revisa y descuenta sin que otra
+    // reserva se meta entre la lectura y la escritura.
+    private val stockMutex = Mutex()
+
     override fun observeProducts(): Flow<List<Product>> {
         observationCount += 1
 
@@ -30,6 +45,62 @@ class FakeProductRepository(
         } else {
             flow {
                 throw error
+            }
+        }
+    }
+
+    override suspend fun reserveUnits(
+        productId: String,
+        quantity: Int
+    ): Result<Unit> {
+        reservationGate?.await()
+
+        return updateStock(productId) { currentStock ->
+            if (currentStock >= quantity) {
+                currentStock - quantity
+            } else {
+                null
+            }
+        }
+    }
+
+    override suspend fun releaseUnits(
+        productId: String,
+        quantity: Int
+    ): Result<Unit> {
+        return updateStock(productId) { currentStock ->
+            currentStock + quantity
+        }
+    }
+
+    fun stockOf(productId: String): Int {
+        return products.value.first { product ->
+            product.id == productId
+        }.stock
+    }
+
+    private suspend fun updateStock(
+        productId: String,
+        calculateNewStock: (Int) -> Int?
+    ): Result<Unit> {
+        if (isOffline) {
+            return Result.failure(IOException("Sin conexión"))
+        }
+
+        return stockMutex.withLock {
+            val newStock = calculateNewStock(stockOf(productId))
+
+            if (newStock == null) {
+                Result.failure(OutOfStockException(productId = productId))
+            } else {
+                products.value = products.value.map { product ->
+                    if (product.id == productId) {
+                        product.copy(stock = newStock)
+                    } else {
+                        product
+                    }
+                }
+                Result.success(Unit)
             }
         }
     }
