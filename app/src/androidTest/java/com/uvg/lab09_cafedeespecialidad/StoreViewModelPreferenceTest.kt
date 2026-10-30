@@ -14,7 +14,7 @@ class StoreViewModelPreferenceTest {
     @Test
     fun catalogStartsSortedByNameByDefault() {
         runBlocking {
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = FakeStoreDao(),
                 preferencesDataStore = FakePreferencesDataStore()
             )
@@ -36,7 +36,7 @@ class StoreViewModelPreferenceTest {
     fun sortOrderIsSavedAndAppliedWhenViewModelIsCreatedAgain() {
         runBlocking {
             val preferencesDataStore = FakePreferencesDataStore()
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = FakeStoreDao(),
                 preferencesDataStore = preferencesDataStore
             )
@@ -56,7 +56,7 @@ class StoreViewModelPreferenceTest {
             assertEquals("price", savedValue)
 
             // Un ViewModel nuevo con el mismo DataStore simula reabrir la app.
-            val reopenedViewModel = StoreViewModel(
+            val reopenedViewModel = createTestStoreViewModel(
                 storeDao = FakeStoreDao(),
                 preferencesDataStore = preferencesDataStore
             )

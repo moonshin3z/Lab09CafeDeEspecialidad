@@ -1,9 +1,12 @@
 package com.uvg.lab09_cafedeespecialidad
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -11,7 +14,9 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,8 +27,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.uvg.lab09_cafedeespecialidad.model.CatalogLoadState
 import com.uvg.lab09_cafedeespecialidad.model.CatalogSortOrder
 import com.uvg.lab09_cafedeespecialidad.model.Product
 import com.uvg.lab09_cafedeespecialidad.ui.components.CatalogSortSelector
@@ -38,12 +45,117 @@ fun CatalogScreen(
     favoriteIds: Set<String>,
     query: String,
     sortOrder: CatalogSortOrder,
+    catalogLoadState: CatalogLoadState,
     orderUnitCount: Int,
     gridState: LazyGridState,
     onQueryChange: (String) -> Unit,
+    onRetryCatalog: () -> Unit,
     onSortOrderChange: (CatalogSortOrder) -> Unit,
     onOrderClick: () -> Unit,
     onMyOrdersClick: () -> Unit,
+    onProductClick: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(text = "Café de Especialidad")
+                },
+                actions = {
+                    IconButton(onClick = onMyOrdersClick) {
+                        Icon(
+                            imageVector =
+                                Icons.AutoMirrored.Filled.ReceiptLong,
+                            contentDescription = "Mis pedidos"
+                        )
+                    }
+
+                    TextButton(onClick = onOrderClick) {
+                        Text(text = "Pedido · $orderUnitCount")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            if (catalogLoadState == CatalogLoadState.Success) {
+                ScrollToTopButton(
+                    gridState = gridState
+                )
+            }
+        }
+    ) { paddingValues ->
+        when (catalogLoadState) {
+            CatalogLoadState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            }
+
+            is CatalogLoadState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(24.dp),
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = catalogLoadState.message,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(onClick = onRetryCatalog) {
+                            Text(text = "Reintentar")
+                        }
+                    }
+                }
+            }
+
+            CatalogLoadState.Success -> {
+                CatalogGrid(
+                    products = products,
+                    favoriteIds = favoriteIds,
+                    query = query,
+                    sortOrder = sortOrder,
+                    gridState = gridState,
+                    onQueryChange = onQueryChange,
+                    onSortOrderChange = onSortOrderChange,
+                    onProductClick = onProductClick,
+                    onToggleFavorite = onToggleFavorite,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CatalogGrid(
+    products: List<Product>,
+    favoriteIds: Set<String>,
+    query: String,
+    sortOrder: CatalogSortOrder,
+    gridState: LazyGridState,
+    onQueryChange: (String) -> Unit,
+    onSortOrderChange: (CatalogSortOrder) -> Unit,
     onProductClick: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -63,109 +175,79 @@ fun CatalogScreen(
         }
     }
 
-    Scaffold(
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        state = gridState,
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Café de Especialidad")
-                },
-                actions = {
-                    IconButton(onClick = onMyOrdersClick) {
-                        Icon(
-                            imageVector = Icons.Filled.ReceiptLong,
-                            contentDescription = "Mis pedidos"
-                        )
-                    }
-
-                    TextButton(onClick = onOrderClick) {
-                        Text("Pedido · $orderUnitCount")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            ScrollToTopButton(
-                gridState = gridState
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 96.dp
+        ),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item(
+            span = {
+                GridItemSpan(maxLineSpan)
+            }
+        ) {
+            SearchBar(
+                query = query,
+                resultCount = filteredProducts.size,
+                onQueryChange = onQueryChange
             )
         }
-    ) { paddingValues ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            state = gridState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                top = 16.dp,
-                end = 16.dp,
-                bottom = 96.dp
-            ),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+
+        item(
+            span = {
+                GridItemSpan(maxLineSpan)
+            }
         ) {
+            CatalogSortSelector(
+                sortOrder = sortOrder,
+                onSortOrderChange = onSortOrderChange
+            )
+        }
+
+        if (filteredProducts.isEmpty()) {
             item(
                 span = {
                     GridItemSpan(maxLineSpan)
                 }
             ) {
-                SearchBar(
-                    query = query,
-                    resultCount = filteredProducts.size,
-                    onQueryChange = onQueryChange
-                )
-            }
-
-            item(
-                span = {
-                    GridItemSpan(maxLineSpan)
-                }
-            ) {
-                CatalogSortSelector(
-                    sortOrder = sortOrder,
-                    onSortOrderChange = onSortOrderChange
-                )
-            }
-
-            if (filteredProducts.isEmpty()) {
-                item(
-                    span = {
-                        GridItemSpan(maxLineSpan)
-                    }
+                Column(
+                    modifier = Modifier.padding(vertical = 24.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 24.dp)
-                    ) {
-                        Text(
-                            text = "No encontramos productos.",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                    Text(
+                        text = "No encontramos productos.",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
 
-                        Text(
-                            text = "Prueba con otra búsqueda o usa Limpiar.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            } else {
-                items(
-                    items = filteredProducts,
-                    key = { product ->
-                        product.id
-                    }
-                ) { product ->
-                    ProductCard(
-                        product = product,
-                        isFavorite = product.id in favoriteIds,
-                        onClick = {
-                            onProductClick(product.id)
-                        },
-                        onToggleFavorite = {
-                            onToggleFavorite(product.id)
-                        }
+                    Text(
+                        text = "Prueba con otra búsqueda o usa Limpiar.",
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
+            }
+        } else {
+            items(
+                items = filteredProducts,
+                key = { product ->
+                    product.id
+                }
+            ) { product ->
+                ProductCard(
+                    product = product,
+                    isFavorite = product.id in favoriteIds,
+                    onClick = {
+                        onProductClick(product.id)
+                    },
+                    onToggleFavorite = {
+                        onToggleFavorite(product.id)
+                    }
+                )
             }
         }
     }

@@ -14,7 +14,7 @@ class StoreViewModelPersistenceTest {
     fun toggleFavoriteInsertsAndDeletesFavorite() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = dao,
                 preferencesDataStore = FakePreferencesDataStore()
             )
@@ -57,7 +57,7 @@ class StoreViewModelPersistenceTest {
     fun zeroQuantityAndConfirmationDeleteOrderLines() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = dao,
                 preferencesDataStore = FakePreferencesDataStore(),
                 orderApi = FakeOrderApi()
@@ -121,7 +121,7 @@ class StoreViewModelPersistenceTest {
     fun rejectedOrderUpdateDoesNotReachDatabase() {
         runBlocking {
             val dao = FakeStoreDao()
-            val viewModel = StoreViewModel(
+            val viewModel = createTestStoreViewModel(
                 storeDao = dao,
                 preferencesDataStore = FakePreferencesDataStore()
             )
@@ -134,10 +134,11 @@ class StoreViewModelPersistenceTest {
 
             viewModel.addToOrder("cafe-geisha")
 
+            // Las 3 unidades ya están reservadas: Firestore quedó en 0.
             val rejectedState = withTimeout(1_000) {
                 viewModel.uiState.first { state ->
                     state.orderMessage ==
-                        "No hay existencias suficientes. Máximo disponible: 3."
+                        "Agotado: no quedan existencias de este producto."
                 }
             }
             val savedLines = dao.observeOrderLines().first()

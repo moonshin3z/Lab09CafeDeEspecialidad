@@ -3,6 +3,9 @@ package com.uvg.lab09_cafedeespecialidad.order
 import com.uvg.lab09_cafedeespecialidad.model.OrderItem
 import com.uvg.lab09_cafedeespecialidad.model.Product
 
+const val OUT_OF_STOCK_MESSAGE =
+    "Agotado: no quedan existencias de este producto."
+
 sealed interface OrderUpdateResult {
     data class Success(
         val orderItems: List<OrderItem>
@@ -37,11 +40,13 @@ fun addToOrder(
     val currentQuantity = currentItem?.quantity ?: 0
     val requestedQuantity = currentQuantity + increment
 
-    if (requestedQuantity > product.stock) {
+    // Las unidades del pedido ya están reservadas en Firestore, así que
+    // product.stock es lo que queda disponible para agregar.
+    if (increment > product.stock) {
         val reason = if (product.stock == 0) {
-            "No hay existencias disponibles para este producto."
+            OUT_OF_STOCK_MESSAGE
         } else {
-            "No hay existencias suficientes. Máximo disponible: ${product.stock}."
+            "No hay existencias suficientes. Disponibles: ${product.stock}."
         }
 
         return OrderUpdateResult.Rejected(reason = reason)

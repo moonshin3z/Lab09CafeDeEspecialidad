@@ -25,7 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.uvg.lab09_cafedeespecialidad.remote.OrderDto
+import com.uvg.lab09_cafedeespecialidad.model.Order
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -116,7 +116,7 @@ fun OrdersScreen(
 
 @Composable
 private fun OrdersList(
-    orders: List<OrderDto>,
+    orders: List<Order>,
     onOrderClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {

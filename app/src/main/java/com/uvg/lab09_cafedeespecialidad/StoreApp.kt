@@ -16,7 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
@@ -31,15 +30,16 @@ import com.uvg.lab09_cafedeespecialidad.model.OrderSubmissionState
 @Composable
 fun StoreApp(
     modifier: Modifier = Modifier,
-    viewModel: StoreViewModel = viewModel()
+    viewModel: StoreViewModel,
+    ordersViewModel: OrdersViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val orderSubmissionState by
     viewModel.orderSubmissionState.collectAsStateWithLifecycle()
 
-    val ordersViewModel: OrdersViewModel =
-        androidx.lifecycle.viewmodel.compose.viewModel()
+    val concurrencyTestState by
+    viewModel.concurrencyTestState.collectAsStateWithLifecycle()
 
     val ordersUiState by
     ordersViewModel.ordersUiState.collectAsStateWithLifecycle()
@@ -130,8 +130,10 @@ fun StoreApp(
                     favoriteIds = uiState.favoriteIds,
                     query = uiState.query,
                     sortOrder = uiState.sortOrder,
+                    catalogLoadState = uiState.catalogLoadState,
                     orderUnitCount = orderUnitCount,
                     onQueryChange = viewModel::onQueryChange,
+                    onRetryCatalog = viewModel::retryCatalog,
                     onSortOrderChange = viewModel::onSortOrderChange,
                     onOrderClick = {
                         backStack.add(StoreNavKey.Order)
@@ -205,11 +207,16 @@ fun StoreApp(
                         isFavorite = product.id in uiState.favoriteIds,
                         orderQuantity = orderQuantity,
                         orderMessage = uiState.orderMessage,
+                        isReserving = product.id in uiState.reservingProductIds,
+                        concurrencyTestState = concurrencyTestState,
                         onToggleFavorite = {
                             viewModel.toggleFavorite(product.id)
                         },
                         onAddToOrder = {
                             viewModel.addToOrder(product.id)
+                        },
+                        onConcurrencyTest = {
+                            viewModel.onConcurrencyTest(product.id)
                         },
                         onProfileClick = {
                             backStack.add(
@@ -234,6 +241,8 @@ fun StoreApp(
                     lineSubtotals = lineSubtotals,
                     orderTotal = viewModel.orderTotal(),
                     orderMessage = uiState.orderMessage,
+                    reservingProductIds = uiState.reservingProductIds,
+                    releasingProductIds = uiState.releasingProductIds,
                     onIncrease = { productId ->
                         viewModel.addToOrder(productId)
                     },

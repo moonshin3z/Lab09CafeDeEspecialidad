@@ -1,46 +1,44 @@
 package com.uvg.lab09_cafedeespecialidad.remote
 
-import com.uvg.lab09_cafedeespecialidad.model.CheckoutUiState
-import com.uvg.lab09_cafedeespecialidad.model.OrderItem
-import com.uvg.lab09_cafedeespecialidad.model.Product
-import java.math.BigDecimal
-import java.math.RoundingMode
+import com.uvg.lab09_cafedeespecialidad.model.BillingType
+import com.uvg.lab09_cafedeespecialidad.model.NewOrder
+import com.uvg.lab09_cafedeespecialidad.model.Order
+import com.uvg.lab09_cafedeespecialidad.model.OrderLine
+import com.uvg.lab09_cafedeespecialidad.model.PaymentMethod
 
-fun buildNewOrderDto(
-    products: List<Product>,
-    orderItems: List<OrderItem>,
-    checkout: CheckoutUiState,
-    createdAt: Long
-): NewOrderDto {
-    val productsById = products.associateBy { product ->
-        product.id
-    }
-
-    val lines = orderItems.mapNotNull { orderItem ->
-        val product = productsById[orderItem.productId]
-            ?: return@mapNotNull null
-
-        OrderLineDto(
-            productId = product.id,
-            productName = product.name,
-            unitPrice = product.price.roundToCents(),
-            quantity = orderItem.quantity,
-            subtotal = (
-                product.price * orderItem.quantity
-            ).roundToCents()
-        )
-    }
-
+fun NewOrder.toDto(): NewOrderDto {
     return NewOrderDto(
         createdAt = createdAt,
-        lines = lines,
-        total = lines.sumOf { line -> line.subtotal }.roundToCents(),
-        billingType = checkout.billingType.name,
-        paymentMethod = checkout.paymentMethod.name
+        lines = lines.map { line ->
+            OrderLineDto(
+                productId = line.productId,
+                productName = line.productName,
+                unitPrice = line.unitPrice,
+                quantity = line.quantity,
+                subtotal = line.subtotal
+            )
+        },
+        total = total,
+        billingType = billingType.name,
+        paymentMethod = paymentMethod.name
     )
 }
-private fun Double.roundToCents(): Double {
-    return BigDecimal.valueOf(this)
-        .setScale(2, RoundingMode.HALF_UP)
-        .toDouble()
+
+fun OrderDto.toDomain(): Order {
+    return Order(
+        id = id,
+        createdAt = createdAt,
+        lines = lines.map { line ->
+            OrderLine(
+                productId = line.productId,
+                productName = line.productName,
+                unitPrice = line.unitPrice,
+                quantity = line.quantity,
+                subtotal = line.subtotal
+            )
+        },
+        total = total,
+        billingType = BillingType.valueOf(billingType),
+        paymentMethod = PaymentMethod.valueOf(paymentMethod)
+    )
 }

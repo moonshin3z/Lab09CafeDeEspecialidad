@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /products/{productId} {
+      // La app inicia la sesión anónima antes de leer el catálogo.
+      allow read: if request.auth != null;
+
+      // El catálogo se cargó una sola vez desde la consola.
+      allow create, delete: if false;
+
+      // Una reserva o devolución solo puede cambiar las existencias,
+      // y el resultado tiene que ser un entero mayor o igual que cero.
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
+        && request.resource.data.stock is int
+        && request.resource.data.stock >= 0;
+    }
+  }
+}
